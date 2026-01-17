@@ -708,6 +708,21 @@ console.log("SangApp boot");
     return s.length>n ? (s.slice(0,n-1)+'…') : s;
   }
 
+  // In SangApp v1, PNG files in ./pages are typically scans of *spreads* (two book pages in one image).
+  // The viewer must therefore show ONE book page per viewer slot.
+  // If a segment is marked as "full" for a spread-file (often caused by legacy/migrated mapping
+  // data), we coerce it to "left" to avoid "double double-spreads" (4 pages at once).
+  function _baseName(p){ return (p||'').split('/').pop(); }
+  function _isSpreadFile(p){
+    // Matches auto-detected scan files like: page_001.png (optionally with path prefix)
+    return /^page_\d+\.png$/i.test(_baseName(p));
+  }
+  function _viewerRegion(p, region){
+    const r = region || 'full';
+    if(r === 'full' && _isSpreadFile(p)) return 'left';
+    return r;
+  }
+
   function computeSegmentsForSong(song){
     // Returns an ordered list of page-segments for the song.
     // A segment corresponds to one *book page* (left/right/full crop from a scan file).
@@ -722,7 +737,7 @@ console.log("SangApp boot");
       if(Array.isArray(mapped) && mapped.length){
         for(const x of mapped){
           if(!x || !x.file) continue;
-          segs.push({ file: x.file, region: x.region || 'full' });
+          segs.push({ file: x.file, region: _viewerRegion(x.file, x.region || 'full') });
         }
       }
 
@@ -730,13 +745,13 @@ console.log("SangApp boot");
       if(!segs.length && Array.isArray(song.segments) && song.segments.length){
         for(const x of song.segments){
           if(!x || !x.file) continue;
-          segs.push({ file: x.file, region: x.region || 'full' });
+          segs.push({ file: x.file, region: _viewerRegion(x.file, x.region || 'full') });
         }
       }
       if(!segs.length && Array.isArray(song.pages) && song.pages.length){
         for(const f of song.pages){
           if(!f) continue;
-          segs.push({ file: f, region: 'full' });
+          segs.push({ file: f, region: _viewerRegion(f, 'full') });
         }
       }
 
