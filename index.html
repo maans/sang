@@ -740,7 +740,10 @@ console.log("SangApp boot");
       if(!segs.length){
         const pages = autoPagesForSong(song);
         for(const f of pages){
-          segs.push({ file: f, region: 'full' });
+          // IMPORTANT: The scanned PNGs in ./pages are typically *spreads* (two book pages in one file).
+          // Stable v1 behavior: default to showing a single page by cropping the LEFT half.
+          // Songs that start on the right page are handled via the manual mapping (Bog-fanen).
+          segs.push({ file: f, region: 'left' });
         }
       }
     }
