@@ -1,0 +1,2055 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sangtime Generator</title>
+  <style>
+    :root{
+      --bg:#071022; --panel:#0f1a2e; --line:rgba(255,255,255,.12);
+      --text:#eef3ff; --muted:#9bb0d3; --accent:#4ea1ff; --danger:#ff5c7a;
+      --r:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg),#050a14);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:rgba(5,10,20,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+    .wrap{max-width:920px;margin:0 auto;padding:12px 12px 18px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    h1{font-size:18px;margin:0}
+    .tabs{display:flex;gap:8px;margin-top:10px}
+    .tab{flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);font-weight:700}
+    .tab.active{border-color:rgba(78,161,255,.45);background:rgba(78,161,255,.12)}
+    .panel{background:rgba(15,26,46,.9);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:12px}
+    .ph{padding:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+    .ph strong{font-size:14px}
+    .pb{padding:12px}
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+    select,input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);font-size:14px}
+    select[multiple]{min-height:120px}
+    .row{display:flex;gap:10px}
+    .row>*{flex:1}
+    button{border:0;border-radius:12px;padding:10px 12px;font-size:14px;font-weight:800;background:var(--accent);color:#08101f}
+    button.secondary{background:rgba(255,255,255,.10);border:1px solid var(--line);color:var(--text)}
+    button.danger{background:rgba(255,92,122,.16);border:1px solid rgba(255,92,122,.35);color:#ffd3dc}
+    .hint{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.35}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05)}
+    .drag{width:34px;height:34px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);user-select:none;cursor:grab;background:rgba(0,0,0,.12)}
+    .meta{min-width:0;flex:1}
+    .t{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .s{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .acts{display:flex;gap:8px}
+    .icon{width:36px;height:36px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);display:grid;place-items:center;font-weight:900}
+    .icon.remove{border-color:rgba(255,92,122,.35);background:rgba(255,92,122,.14)}
+    .icon.open{border-color:rgba(78,161,255,.35);background:rgba(78,161,255,.14)}
+    .icon.small{width:32px;height:32px;border-radius:10px;font-size:12px}
+    /* toast */
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(15,26,46,.96);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;z-index:999}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+    @keyframes flash{0%{transform:scale(1)}30%{transform:scale(1.02)}100%{transform:scale(1)}}
+    .flash{animation:flash .35s ease}
+    /* viewer */
+    .modal{position:fixed;inset:0;display:none;z-index:50;background:rgba(0,0,0,.70);backdrop-filter:blur(8px);padding:12px}
+    .modal.open{display:block}
+    .sheet{height:100%;max-width:980px;margin:0 auto;background:rgba(10,16,28,.96);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+    .mtop{padding:10px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .mtitle{font-weight:900;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mctrl{display:flex;gap:8px}
+    .mimg{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:10px}
+    .mimg img{width:min(100%,900px);height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+    /* hide sections by tab */
+    [data-view]{display:none}
+    [data-view].show{display:block}
+  
+.frame{width:min(100%,900px);margin:0 auto;overflow:hidden;border-radius:16px;border:1px solid var(--line);background:#fff}
+.frame img{display:block;height:auto}
+
+    .mframe{width:min(100%,900px);margin:0 auto;overflow:hidden;border-radius:16px;border:1px solid var(--line);background:#fff;}
+    .mframe.is-two{width:min(100%,1400px);}
+
+    /* 2-side viewer layout */
+    .mpages{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;}
+    @media (max-width: 780px){
+      .mpages{grid-template-columns:1fr;}
+    }
+
+    .mpage{overflow:hidden;border-radius:12px;background:#fff;}
+    .mpage.placeholder{display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;min-height:40vh;padding:14px;text-align:center;}
+
+    /* Cropping: scans are spreads. We show either left or right half in each slot when region is left/right. */
+    .crop{position:relative;overflow:hidden;width:100%;}
+    .crop img{display:block;width:200%;max-width:none;height:auto;}
+    .crop.full img{width:100%;}
+    .crop.left img{transform:translateX(0%);}
+    .crop.right img{transform:translateX(-50%);}
+
+  </style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>Sangtime Generator</h1>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="stats" style="color:var(--muted);font-size:12px"></div>
+        <button id="helpBtn" class="secondary" type="button" aria-label="Hjælp" title="Hjælp" style="padding:8px 10px;border-radius:10px;min-width:34px">?</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="temaer" type="button">Temaer</button>
+      <button class="tab" data-tab="soeg" type="button">Søg</button>
+      <button class="tab" data-tab="plan" type="button">Sangtime</button>
+      <button class="tab" data-tab="bog" type="button">Bog</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Temaer -->
+  <section class="panel show" data-view="temaer">
+    <div class="ph"><strong>Vælg tema(er)</strong><button class="secondary" id="clearThemes" type="button">Nulstil</button></div>
+    <div class="pb">
+      <label for="themes">Temaer (multi-select)</label>
+      <select id="themes" multiple></select>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="ph"><strong>Billeder (scan)</strong></div>
+        <div class="pb">
+          <div class="hint">Hvis du har en mappe <b>pages/</b> ved siden af <b>index.html</b> på din computer, prøver appen automatisk at bruge den. Ellers vælg en mappe her:</div>
+          <div style="margin-top:10px">
+            <label for="imgFolder">Vælg billedmappe (valgfri)</label>
+            <input id="imgFolder" type="file" webkitdirectory directory multiple />
+          </div>
+          <div id="imgStatus" class="hint" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="ph"><strong>Data (sange og temaer)</strong></div>
+        <div class="pb">
+          <div class="hint">Du kan erstatte titler og temaer ved at importere en CSV fra Excel (Gem som CSV).</div>
+          <div class="row" style="align-items:flex-end">
+            <div>
+              <label for="songsCsv">Importér sangdata (CSV)</label>
+              <input id="songsCsv" type="file" accept=".csv,text/csv" />
+            </div>
+            <div style="flex:0 0 auto;display:flex;gap:8px">
+              <button id="importCsv" type="button">Importér</button>
+              <button id="resetCsv" class="secondary" type="button">Nulstil data</button>
+            </div>
+          </div>
+          <div class="hint">CSV-kolonner: <b>nr</b>, <b>titel</b>, <b>temaer</b>. Temaer kan adskilles med <b>|</b> eller <b>;</b>.</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label for="count">Antal sange</label>
+          <input id="count" type="number" min="1" step="1" value="9" inputmode="numeric" />
+        </div>
+        <div style="flex:1.2">
+          <label>&nbsp;</label>
+          <button id="generate" type="button">Generér sangtime</button>
+        </div>
+      </div>
+
+      <div class="hint">Efter generering kan du gå til fanen <b>Sangtime</b> og ændre rækkefølge, fjerne eller åbne sange.</div>
+    </div>
+  </section>
+
+  <!-- Søg -->
+  <section class="panel" data-view="soeg">
+    <div class="ph"><strong>Tilføj sang (titelsøgning)</strong></div>
+    <div class="pb">
+      <label for="search">Søg</label>
+      <input id="search" type="search" placeholder="Skriv fx “anemone”, “danmark”, “lyse” …" />
+      <div class="hint">Tryk + for at lægge sangen i din sangtime.</div>
+      <div id="results" class="list" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- Plan -->
+  <section class="panel" data-view="plan">
+    <div class="ph">
+      <strong>Din sangtime</strong>
+      <div class="row" style="gap:8px;flex:0 0 auto">
+        <button class="secondary" id="savePlan" type="button" title="Gem sangtimen (download + arkiv)">Gem</button>
+        <button class="secondary" id="openArchive" type="button" title="Åbn gemte sangtimer">Arkiv</button>
+        <button class="secondary" id="shuffle" type="button">Bland</button>
+        <button class="danger" id="clearPlan" type="button">Ryd</button>
+      </div>
+    </div>
+    <div class="pb">
+      <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div id="planMeta" class="hint" style="margin:0"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="secondary" id="regenPlan" type="button" title="Generér en ny sangtime med de samme temaer">Generér igen</button>
+          <button class="secondary" id="editThemes" type="button" title="Gå til Temaer">Skift temaer</button>
+        </div>
+      </div>
+      <div id="plan" class="list"></div>
+      <div class="hint">
+        <b>Flyt:</b> brug ▲/▼ (altid stabilt på mobil). På desktop kan du også trække i ≡.  
+        <b>Åbn:</b> ↗ åbner sangens side(r) og du kan bladre.
+      </div>
+    </div>
+  </section>
+
+  <!-- Bog / mapping -->
+  <section class="panel" data-view="bog">
+    <div class="ph"><strong>Bog – ret titler ↔ sider</strong>
+      <div style="display:flex;gap:8px">
+        <button class="secondary" id="mapExport" type="button">Eksportér mapping</button>
+        <label class="secondary" style="display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.10);cursor:pointer">
+          Importér
+          <input id="mapImport" type="file" accept="application/json" style="display:none" />
+        </label>
+      </div>
+    </div>
+    <div class="pb">
+      <div class="hint">Brug denne visning til at bladre i dine <b>scan-sider</b> og knytte dem til sangnumre. Det løser “forskydning” (fx at sang #001 ligger på <code>page_005.png</code>). Når du har rettet, kan du eksportere en backup (JSON) og sende den til mig, så vi kan bake den ind i de hardcodede data.</div>
+
+      <div class="panel" id="missingPanel" style="margin-top:10px;display:none">
+        <div class="pb" style="padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <div><b>Manglende sange uden mapping:</b> <span id="missingCount" class="pill"></span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="secondary" id="missingRefresh" type="button">Opdatér</button>
+              <button class="btn" id="missingCreate" type="button" title="Opret tom mapping for alle manglende sange">Opret tom mapping</button>
+            </div>
+          </div>
+          <div id="missingSuggest" class="hint" style="margin-top:6px"></div>
+          <div id="missingList" class="hint" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;align-items:flex-end">
+        <div>
+          <label for="pageIndex">Scan-side</label>
+          <input id="pageIndex" type="number" min="1" step="1" value="1" inputmode="numeric" />
+        </div>
+        <div style="flex:1.2">
+          <label>&nbsp;</label>
+          <div style="display:flex;gap:8px">
+            <button class="secondary" id="pagePrev" type="button">◀</button>
+            <button class="secondary" id="pageNext" type="button">▶</button>
+          </div>
+        </div>
+        <div style="flex:2">
+          <label>Venstre → sang #</label>
+          <div style="display:flex;gap:8px">
+            <input id="assignLeft" type="number" min="1" step="1" placeholder="fx 6" inputmode="numeric" style="flex:1" />
+            <button id="setLeftBtn" type="button">Sæt</button>
+            <button class="danger" id="clearLeftBtn" type="button">Fjern</button>
+          </div>
+        </div>
+        <div style="flex:2">
+          <label>Højre → sang #</label>
+          <div style="display:flex;gap:8px">
+            <input id="assignRight" type="number" min="1" step="1" placeholder="fx 7" inputmode="numeric" style="flex:1" />
+            <button id="setRightBtn" type="button">Sæt</button>
+            <button class="danger" id="clearRightBtn" type="button">Fjern</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint" id="pageMeta" style="margin-top:8px"></div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="pb" style="padding:10px">
+          <img id="pageImg" alt="" style="width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff" />
+        </div>
+      </div>
+
+      <div class="hint" style="margin-top:10px">
+        Tip: Sæt først fx <b>scan-side 5 → sang #1</b>. Når et par stykker er sat, kan vi udlede resten og gøre det automatisk.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Viewer -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="mtop">
+      <div class="mtitle" id="mTitle">…</div>
+      <div class="mctrl">
+        <button class="secondary" id="prevSong" type="button">&lt;</button>
+        <button class="secondary" id="nextSong" type="button">&gt;</button>
+                <div id="mPageInfo" class="hint" style="margin:0 10px 0 10px;align-self:center;white-space:nowrap"></div>
+        <button class="danger" id="close" type="button">Luk</button>
+      </div>
+    </div>
+    <div class="mimg">
+      <div id="mMsg" class="hint" style="width:min(100%,900px);margin:0 auto 10px;display:none"></div>
+      <div id="mFrame" class="mframe">
+        <div id="mPages" class="mpages"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal" id="helpModal" aria-hidden="true">
+  <div class="sheet" style="max-width:900px">
+    <div class="mh">
+      <div style="font-weight:900">Hjælp</div>
+      <button class="secondary" id="helpClose" type="button">Luk</button>
+    </div>
+    <div class="pb" style="max-height:70vh;overflow:auto;line-height:1.45">
+      <h3 style="margin:0 0 8px">Kom i gang</h3>
+      <ol style="margin:0 0 12px;padding-left:18px">
+        <li>Vælg ét eller flere temaer under <b>Temaer</b> (multi-select).</li>
+        <li>Vælg antal sange og tryk <b>Generér sangtime</b>.</li>
+        <li>Gå til <b>Sangtime</b> for at flytte, fjerne eller åbne sange i nodevisningen.</li>
+      </ol>
+
+      <h3 style="margin:14px 0 8px">Billeder (scan) – format og placering</h3>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        <li>Filerne skal være <b>PNG</b> og hedde <b>page_001.png</b> … <b>page_214.png</b> (3 cifre).</li>
+        <li>Hvis du har en mappe <b>pages/</b> ved siden af <b>index.html</b> (samme niveau), forsøger appen automatisk at bruge den.</li>
+        <li>Alternativt kan du vælge en lokal mappe via <b>Vælg billedmappe</b> (intet uploades).</li>
+      </ul>
+
+      <h3 style="margin:14px 0 8px">Bog (mapping)</h3>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        <li>I <b>Bog</b>-fanen kan du knytte sangnumre til venstre/højre side på et scan-opslag.</li>
+        <li>Når mappingen er på plads, kan viewer beskære til relevant halvside.</li>
+      </ul>
+
+      <h3 style="margin:14px 0 8px">Importér sangtitler og temaer (CSV fra Excel)</h3>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        <li>Gem dit regneark som <b>CSV</b>.</li>
+        <li>Kolonner: <b>nr</b>, <b>titel</b>, <b>temaer</b>.</li>
+        <li><b>temaer</b> kan adskilles med <b>|</b> eller <b>;</b> (fx <code>LIVSMOD|ANSVAR</code>).</li>
+        <li>Importen gemmes lokalt i browseren. Brug <b>Nulstil data</b> for at gå tilbage til standard.</li>
+      </ul>
+
+      <div class="hint" style="margin-top:14px">
+        Tip: På Windows kan du multi-vælge temaer med Ctrl+klik. På Mac: Cmd+klik.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Arkiv modal (gemte sangtimer) -->
+<div class="modal" id="archiveModal" aria-hidden="true">
+  <div class="sheet" style="max-width:900px">
+    <div class="mh">
+      <div style="font-weight:900">Arkiv</div>
+      <div style="display:flex;gap:8px">
+        <button class="secondary" id="archiveDownloadAll" type="button" title="Download hele arkivet som JSON">Download arkiv</button>
+        <button class="secondary" id="archiveClose" type="button">Luk</button>
+      </div>
+    </div>
+    <div class="pb" style="max-height:70vh;overflow:auto">
+      <div class="hint" style="margin:0 0 10px">Gemte sangtimer ligger i browserens localStorage. For at lave en fil-backup: brug <b>Gem</b> (download) eller <b>Download arkiv</b> her.</div>
+      <div id="archiveList" class="list"></div>
+      <div id="archiveEmpty" class="hint" style="display:none;margin-top:10px;color:var(--muted)">Arkivet er tomt.</div>
+    </div>
+  </div>
+</div>
+
+
+<script id="songsData" type="application/json">[{"nr": 1, "titel": "Her er mit sted", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 2, "titel": "Brusende toner", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 3, "titel": "Stjernerne", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 4, "titel": "En kort, en lang", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 5, "titel": "Flydningen", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 6, "titel": "Kaj ogAndreas duet", "aliaser": ["Vennesangen"], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 7, "titel": "Vem kan segle forutan vind", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 8, "titel": "Tears in heaven", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 9, "titel": "With A Little Help From My Friends", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 10, "titel": "Hey Jude", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 11, "titel": "Det bedste jeg ved", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 12, "titel": "Flyvende Faduma", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 13, "titel": "Hvor er tiden der ta'r os", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 14, "titel": "Open wide", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 15, "titel": "Fix you", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 16, "titel": "Vejen hjem", "aliaser": [], "temaer": ["FÆLLESSKAB"], "pages": []}, {"nr": 17, "titel": "Hvad skal verden med sådan en som mig?", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 18, "titel": "Ord-skaber", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 19, "titel": "Puslespil", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 20, "titel": "Begyndelse", "aliaser": ["Det er så smukt at begynde"], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 21, "titel": "Livstræet", "aliaser": ["Der er så meget der kan trykke"], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 22, "titel": "Til ungdommen", "aliaser": ["Kringsatt av tiender"], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 23, "titel": "Joanna", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 24, "titel": "De smukke unge mennesker", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 25, "titel": "Held og lykke", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 26, "titel": "Ud under åben himmel", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 27, "titel": "Barndommens land", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 28, "titel": "Papirsklip", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 29, "titel": "Jeg elsker den brogede verden", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 30, "titel": "Op, al den ting, som Gud har gjort", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 31, "titel": "Åbent hjerte", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 32, "titel": "Et hus at komme til", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 33, "titel": "Hjem", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 34, "titel": "Let it be", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 35, "titel": "Tusind farver", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 36, "titel": "Sikke en sang", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 37, "titel": "Alt er godt", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 38, "titel": "What a life", "aliaser": [], "temaer": ["LIVSMOD"], "pages": []}, {"nr": 39, "titel": "Vi kommer alle et sted fra", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 40, "titel": "Man er som man er", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 41, "titel": "At kende sig selv", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 42, "titel": "This is my life", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 43, "titel": "Barndommens gade", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 44, "titel": "Pà en strimmel sand", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 45, "titel": "Har været på vingerne", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 46, "titel": "Hvad tænker Ingrid på?", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 47, "titel": "Linedanser", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 48, "titel": "I hjerterne begynder", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 49, "titel": "Dåser rasler i morgengry", "aliaser": ["Lille mand"], "temaer": ["IDENTITET"], "pages": []}, {"nr": 50, "titel": "Noget om helte", "aliaser": ["Livet er en morgengave"], "temaer": ["IDENTITET"], "pages": []}, {"nr": 51, "titel": "Er lyset for de lærde blot", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 52, "titel": "Wonderwall", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 53, "titel": "Puff", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 54, "titel": "Hallelujah", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 55, "titel": "Lifetime", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 56, "titel": "Troen er ikke en klippe", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 57, "titel": "Flying", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 58, "titel": "Det levende ord", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 59, "titel": "Smukke skud", "aliaser": [], "temaer": ["IDENTITET"], "pages": []}, {"nr": 60, "titel": "Et lysår - en stjerne", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 61, "titel": "Gi’ os lyset tilbage", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 62, "titel": "Rejsen begynder med årvågne sanser", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 63, "titel": "Der er altid et sted på jorden", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 64, "titel": "Sat her i forvirringstiden", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 65, "titel": "En enkel sang om frihed", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 66, "titel": "Dommen er faldet, ingen appel", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 67, "titel": "Hvor du sætter din fod", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 68, "titel": "For at tænde lys", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 69, "titel": "Du skal plante et træ", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 70, "titel": "Julies sprog", "aliaser": ["Fast som en klippe"], "temaer": ["ANSVAR"], "pages": []}, {"nr": 71, "titel": "Imagine", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 72, "titel": "Midt om natten", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 73, "titel": "Du satte dig selv i de nederstes sted", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 74, "titel": "Menneske, din egen magt", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 75, "titel": "Det regner med muligheder", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 76, "titel": "Du spør mig om håbet", "aliaser": [], "temaer": ["ANSVAR"], "pages": []}, {"nr": 77, "titel": "Størst af alt er kærlighed", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 78, "titel": "Sådan nogen som os", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 79, "titel": "Love someone", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 80, "titel": "Hurtige hænder", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 81, "titel": "Kald det kærlighed", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 82, "titel": "Danse i måneskin", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 83, "titel": "Jeg vil la’ lyset brænde", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 84, "titel": "De første kærester på månen", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 85, "titel": "Så længe jeg lever", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 86, "titel": "Kvinde min", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 87, "titel": "Til min Marie", "aliaser": ["Hvad er det, min Marie"], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 88, "titel": "Visen om de atten svaner", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 89, "titel": "Vi elsker altid rigtigt", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 90, "titel": "Forårsdag", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 91, "titel": "Leaving on a jet plane", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 92, "titel": "Heaven", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 93, "titel": "Kanterne", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 94, "titel": "Du kom med alt det der var dig", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 95, "titel": "Som solskin over mark og hav", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 96, "titel": "Skybrud", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 97, "titel": "Hjem fra fabrikken", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 98, "titel": "Fortabt erjeg stadig", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 99, "titel": "Du er det fineste jeg ved", "aliaser": ["Sang til friheden"], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 100, "titel": "Øde ø", "aliaser": [], "temaer": ["KÆRLIGHED"], "pages": []}, {"nr": 101, "titel": "Sådan ligger landet", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 102, "titel": "Der er et yndigt land", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 103, "titel": "Danmark", "aliaser": ["Lige meget hvem du er..."], "temaer": ["DANMARK"], "pages": []}, {"nr": 104, "titel": "I Danmark erjeg født", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 105, "titel": "Frit land", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 106, "titel": "Jutlandia", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 107, "titel": "Skipper Klements morgensang", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 108, "titel": "Stenen slår smut", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 109, "titel": "Jens Vejmand", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 110, "titel": "Danskerne findes i mange modeller", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 111, "titel": "En lærke letted", "aliaser": ["Danmark frit"], "temaer": ["DANMARK"], "pages": []}, {"nr": 112, "titel": "Frihedens lysdøgn", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 113, "titel": "Min frihed er en lille fugl i hånden", "aliaser": [], "temaer": ["DANMARK"], "pages": []}, {"nr": 114, "titel": "Sensommervise", "aliaser": ["Æbler lyser rødt på træernes grene"], "temaer": ["VINTER"], "pages": []}, {"nr": 115, "titel": "I det smukke efterår", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 116, "titel": "Septembers himmel er så blå", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 117, "titel": "Nu falmer skoven", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 118, "titel": "Mørk er november", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 119, "titel": "Jeg vil male dagen blå", "aliaser": ["Regnvejrsdag i november"], "temaer": ["VINTER"], "pages": []}, {"nr": 120, "titel": "Hold håbet op", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 121, "titel": "Nu tændes tusind julelys", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 122, "titel": "Der er noget I luften", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 123, "titel": "Hvad er det, der gør jul til noget særligt", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 124, "titel": "Happy Christmas", "aliaser": ["War is over"], "temaer": ["VINTER"], "pages": []}, {"nr": 125, "titel": "Lille Messias", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 126, "titel": "Selmas sang", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 127, "titel": "I en stjerneregn af sne", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 128, "titel": "Lille store verden", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 129, "titel": "Kongespil", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 130, "titel": "En stjerne skinner i nat", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 131, "titel": "Dejlig er den himmel blå", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 132, "titel": "Glade jul, dejlige jul", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 133, "titel": "Dejlig erjorden", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 134, "titel": "Det er hvidt herude", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 135, "titel": "En vintermorgen", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 136, "titel": "Vinter viser vej", "aliaser": [], "temaer": ["VINTER"], "pages": []}, {"nr": 137, "titel": "Emneregister Anemonesangen", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 138, "titel": "Vårvise", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 139, "titel": "Syng for livet", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 140, "titel": "Hilsen til forårssolen", "aliaser": ["Det er forår. Alting klippes ned"], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 141, "titel": "Den blå anemone", "aliaser": ["Hvad var det dog der skete?"], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 142, "titel": "Påskeblomst! hvad vil du her", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 143, "titel": "Du kom til vor runde jord", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 144, "titel": "Som en morgen, når solen står strålende op", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 145, "titel": "Noget om kraft", "aliaser": ["Med store undrende øjne"], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 146, "titel": "Det er i dag et vejr", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 147, "titel": "Lyse nætter", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 148, "titel": "Jeg ved en lærkerede", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 149, "titel": "Idas sommarvisa", "aliaser": ["Du ska inte tro det blir sommar"], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 150, "titel": "Sommerens ø", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 151, "titel": "Danmark, nu blunder den lyse nat", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 152, "titel": "Det dufter lysegrønt af græs", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 153, "titel": "Sommersang uden sol", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 154, "titel": "Midsommervisen", "aliaser": [], "temaer": ["FORÅR/SOMMER"], "pages": []}, {"nr": 155, "titel": "Buster", "aliaser": [], "temaer": [], "pages": []}, {"nr": 156, "titel": "I østen stiger solen op", "aliaser": ["I østen stiger solen op"], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 157, "titel": "Den signede dag med fryd vi ser", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 158, "titel": "Solen begynder at gløde", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 159, "titel": "Denne morgens mulighed", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 160, "titel": "Nu blitzer edderkoppespind i graner", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 161, "titel": "Som sol der rammer Moder Jord", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 162, "titel": "Vi ser det i de varme nætters himmel", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 163, "titel": "Se, nu stiger solen", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 164, "titel": "Se, hvilken morgenstund", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 165, "titel": "Godmorgen, lille land", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 166, "titel": "Må din dag få glæde", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 167, "titel": "Under stjernerne på himlen", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 168, "titel": "Nu svinder dagen bort bag aftenskyer", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 169, "titel": "Aftenhimlens strålesymfoni", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 170, "titel": "Et hav, der vugger sig til ro", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 171, "titel": "Malaga", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 172, "titel": "Fuld af nattens stjerner", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 173, "titel": "Elefantens vuggevise", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 174, "titel": "I skovens dybe stille ro", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 175, "titel": "Nu er jord og himmel stille", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 176, "titel": "Nu går solen sin vej", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 177, "titel": "Du, som har tændt millioner af stjerner", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}, {"nr": 178, "titel": "Store, tavse aftenhimmel", "aliaser": [], "temaer": ["MORGEN/AFTEN"], "pages": []}]</script>
+<script>
+console.log("SangApp boot");
+  const state = { songs: [], plan: [], lastGen: { themes: [], count: 9 }, modal: { song:null, songIdx:-1, pageIdx:0, debug:false }, mapping: { version: 2, segmentsBySong: {}, regionSong: {}, missingSongs: {} }, img: { mode: 'auto', fileMap: new Map(), files: [] } };
+
+  // --- Plan persistence + arkiv ---
+  const LS_PLAN_KEY = 'sangapp_plan_v1';
+  const LS_ARCHIVE_KEY = 'sangapp_archive_v1';
+
+  function _todayISO(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function _safeJSONParse(s, fallback){
+    try{ return JSON.parse(s); }catch{ return fallback; }
+  }
+
+  function serializeCurrentPlan(){
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      date: _todayISO(),
+      planNrs: (state.plan||[]).map(x=>x && x.nr).filter(Boolean),
+      lastGen: state.lastGen ? { themes: (state.lastGen.themes||[]).slice(), count: state.lastGen.count||9 } : { themes: [], count: 9 }
+    };
+  }
+
+  function saveCurrentPlanToLocal(){
+    // Keep it cheap + safe. Autosave should never crash the app.
+    try{
+      const payload = serializeCurrentPlan();
+      localStorage.setItem(LS_PLAN_KEY, JSON.stringify(payload));
+    }catch(e){ /* ignore */ }
+  }
+
+  function restorePlanFromLocal(){
+    const raw = localStorage.getItem(LS_PLAN_KEY);
+    if(!raw) return false;
+    const payload = _safeJSONParse(raw, null);
+    if(!payload || !Array.isArray(payload.planNrs)) return false;
+
+    const byNr = new Map((state.songs||[]).map(s=>[String(s.nr), s]));
+    const restored = [];
+    for(const nr of payload.planNrs){
+      const s = byNr.get(String(nr));
+      if(s) restored.push(s);
+    }
+    if(restored.length){
+      state.plan = restored;
+    }
+    if(payload.lastGen){
+      state.lastGen = {
+        themes: Array.isArray(payload.lastGen.themes) ? payload.lastGen.themes.slice() : [],
+        count: payload.lastGen.count || 9
+      };
+    }
+    return restored.length>0;
+  }
+
+  function _getArchive(){
+    const raw = localStorage.getItem(LS_ARCHIVE_KEY);
+    const arr = _safeJSONParse(raw, []);
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  function _setArchive(arr){
+    localStorage.setItem(LS_ARCHIVE_KEY, JSON.stringify(arr||[]));
+  }
+
+  function downloadJSON(obj, filename){
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }
+
+  function addCurrentPlanToArchive(){
+    const payload = serializeCurrentPlan();
+    const id = `${payload.date}_${Date.now()}`;
+    const entry = {
+      id,
+      title: `Sangtime ${payload.date}`,
+      ...payload
+    };
+    const a = _getArchive();
+    a.unshift(entry);
+    _setArchive(a);
+    return entry;
+  }
+
+
+  // Alle temaer fra emneregisteret (Efterskolesangbogen 1)
+  const ALL_THEMES = [
+    "FÆLLESSKAB",
+    "LIVSMOD",
+    "IDENTITET",
+    "ANSVAR",
+    "KÆRLIGHED",
+    "DANMARK",
+    "VINTER",
+    "FORÅR/SOMMER",
+    "MORGEN/AFTEN"
+  ];
+
+  const $ = (id)=>document.getElementById(id);
+  const uniq = (a)=>[...new Set(a)];
+  const norm = (s)=> (s||"")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  const esc = (s)=> String(s).replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  let toastEl = null;
+  function toast(msg){
+    if(!toastEl){
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 900);
+  }
+
+
+  // Mapping (scan-side ↔ sang) – v2 (segmenter: left/right/full, og flere segmenter pr. sang)
+  const MAP_KEY_V2 = 'sangapp_mapping_v2';
+  const MAP_KEY_V1 = 'sangapp_mapping_v1';
+
+  function _ensureMappingDefaults(){
+    state.mapping.version = 2;
+    state.mapping.segmentsBySong = state.mapping.segmentsBySong || {};
+    state.mapping.regionSong = state.mapping.regionSong || {};
+    state.mapping.missingSongs = state.mapping.missingSongs || {};
+  }
+
+  function _makeRegionKey(file, region){
+    return `${file}|${region}`;
+  }
+
+  function rebuildSegmentsBySongFromRegionSong(){
+    const rs = (state.mapping && state.mapping.regionSong) ? state.mapping.regionSong : {};
+    const sb = {};
+
+    const parsePageNo = (file) => {
+      const m = /page_(\d+)\.png$/i.exec(String(file||''));
+      return m ? parseInt(m[1],10) : Number.POSITIVE_INFINITY;
+    };
+    const regionRank = (r) => (r==='left'?0:(r==='right'?1:2));
+
+    for(const [k, songNrRaw] of Object.entries(rs)){
+      const songNr = String(songNrRaw||'').trim();
+      if(!songNr) continue;
+      // key format: "page_005.png|left"
+      const parts = String(k).split('|');
+      const file = parts[0];
+      const region = (parts[1]||'full');
+      if(!file) continue;
+      if(!sb[songNr]) sb[songNr] = [];
+      sb[songNr].push({ file, region });
+    }
+
+    // sort each song segments by page number, then by region (left,right,full)
+    for(const [songNr, arr] of Object.entries(sb)){
+      arr.sort((a,b)=>{
+        const pa = parsePageNo(a.file), pb = parsePageNo(b.file);
+        if(pa!=pb) return pa-pb;
+        const ra = regionRank(a.region), rb = regionRank(b.region);
+        if(ra!=rb) return ra-rb;
+        return String(a.file).localeCompare(String(b.file), undefined, {numeric:true, sensitivity:'base'});
+      });
+    }
+    return sb;
+  }
+
+
+  function loadMapping(){
+    try{
+      const raw2 = localStorage.getItem(MAP_KEY_V2);
+      if(raw2){
+        const m = JSON.parse(raw2);
+        state.mapping.version = 2;
+        state.mapping.segmentsBySong = (m && m.segmentsBySong) ? m.segmentsBySong : {};
+        state.mapping.regionSong = (m && m.regionSong) ? m.regionSong : {};
+        state.mapping.missingSongs = (m && m.missingSongs) ? m.missingSongs : {};
+        // If older saves only had regionSong (left/right bindings), rebuild segmentsBySong for viewer stability
+        if((!state.mapping.segmentsBySong || Object.keys(state.mapping.segmentsBySong).length===0) && state.mapping.regionSong && Object.keys(state.mapping.regionSong).length){
+          state.mapping.segmentsBySong = rebuildSegmentsBySongFromRegionSong();
+        }
+        _ensureMappingDefaults();
+        // Persist normalized structure so future loads are consistent
+        saveMapping();
+        return;
+      }
+
+      // Migration from v1 (page -> song) to v2 (page|full -> song)
+      const raw1 = localStorage.getItem(MAP_KEY_V1);
+      if(!raw1) { _ensureMappingDefaults(); return; }
+      const m1 = JSON.parse(raw1);
+      const songPages = (m1 && m1.songPages) ? m1.songPages : {};
+      const segmentsBySong = {};
+      const regionSong = {};
+      for(const [songNr, pages] of Object.entries(songPages)){
+        if(!Array.isArray(pages) || !pages.length) continue;
+        segmentsBySong[songNr] = pages.map(fn=>({ file: fn, region: 'full' }));
+        for(const fn of pages){
+          regionSong[_makeRegionKey(fn,'full')] = String(songNr);
+        }
+      }
+      state.mapping.version = 2;
+      state.mapping.segmentsBySong = segmentsBySong;
+      state.mapping.regionSong = regionSong;
+      _ensureMappingDefaults();
+      saveMapping();
+    }catch(e){
+      console.warn('mapping load failed', e);
+      _ensureMappingDefaults();
+    }
+  }
+
+  function saveMapping(){
+    _ensureMappingDefaults();
+    localStorage.setItem(MAP_KEY_V2, JSON.stringify({
+      version: 2,
+      updated: new Date().toISOString(),
+      segmentsBySong: state.mapping.segmentsBySong || {},
+      regionSong: state.mapping.regionSong || {},
+      missingSongs: state.mapping.missingSongs || {}
+    }));
+  }
+
+  function applyMappingToSongs(){
+    _ensureMappingDefaults();
+    const sb = state.mapping.segmentsBySong || {};
+    for(const s of state.songs){
+      const key = String(s.nr);
+      if(Array.isArray(sb[key]) && sb[key].length){
+        s.segments = sb[key].map(x=>({ file: x.file, region: x.region || 'full' }));
+      } else if(Array.isArray(s.pages) && s.pages.length){
+        // Backwards compat: if songs already had pages[], treat as full segments
+        s.segments = s.pages.map(fn=>({ file: fn, region: 'full' }));
+      } else {
+        s.segments = [];
+      }
+    }
+  }
+
+  function selectedThemes(){
+
+
+    return [...$("themes").selectedOptions].map(o=>o.value);
+  }
+  function matchesThemes(song, themes){
+    if(!themes.length) return true;
+    const tags = song.temaer || [];
+    return themes.some(t=>tags.includes(t));
+  }
+
+  function loadSongsEmbedded(){
+    const el = document.getElementById('songsData');
+    if(!el) return null;
+    try { return JSON.parse(el.textContent); } catch { return null; }
+  }
+  function setImgMode(mode){
+    state.img.mode = mode;
+    localStorage.setItem('sangapp_img_mode', mode);
+    updateImgControls();
+  }
+
+  function updateImgControls(){
+    const st = document.getElementById('imgStatus');
+    if(!st) return;
+    if(state.img.mode === 'folder'){
+      const n = state.img.fileMap ? state.img.fileMap.size : 0;
+      st.innerHTML = n ? `Valgt mappe: <b>${n}</b> filer` : 'Vælg en mappe for at bruge dine egne billeder.';
+      return;
+    }
+    if(state.img.mode === 'relative'){
+      st.innerHTML = 'Bruger lokal mappe: <b>./pages/</b> (fundet automatisk).';
+      return;
+    }
+    st.innerHTML = 'Ingen billedkilde valgt endnu. Læg dine billeder i <b>./pages/</b> ved siden af <code>index.html</code> (anbefalet), eller vælg en mappe her.';
+  }
+
+  function normalizeBaseUrl(u){
+    if(!u) return '';
+    return u.endsWith('/') ? u : (u + '/');
+  }
+  function resolvePageSrc(page){
+    // page is expected to be a filename like "page_005.png" (or a relative path)
+    const name = (page||'').split('/').pop();
+    if(!name) return '';
+
+    // 1) Picked folder via file input (File System Access / webkitdirectory)
+    if(state.img.mode === 'folder'){
+      const hit = state.img.fileMap.get(name.toLowerCase());
+      if(hit) return hit;
+      // If a file is missing in the picked folder, show placeholder (no demo fallback)
+      return '';
+    }
+
+    // 2) Local folder next to index.html: ./pages/page_###.png
+    if(state.img.mode === 'relative'){
+      return 'pages/' + name;
+    }
+
+    // 3) No source selected
+    return '';
+  }
+
+  function pad3(n){ return String(n).padStart(3, "0"); }
+
+  function autoPagesForSong(song){
+    const base = pad3(song.nr);
+    const direct = `page_${base}.png`;
+
+    // Folder mode: only show pages that actually exist in the picked folder
+    if(state.img.mode === 'folder' && state.img.fileMap && state.img.fileMap.size){
+      const keys = [...state.img.fileMap.keys()];
+      const prefix = `page_${base}`;
+      const matches = keys
+        .filter(k => k.endsWith('.png') && k.startsWith(prefix))
+        .sort();
+      if(matches.length) return matches;
+      if(state.img.fileMap.has(direct.toLowerCase())) return [direct];
+      return [];
+    }
+
+    // Relative/auto mode: only try if we have a usable source
+    if(state.img.mode === 'relative') return [direct];
+    return [];
+  }
+
+
+
+  // ===== Viewer helpers (plan-wide spreads) =====
+  function truncTitle(s, n=28){
+    if(!s) return '';
+    return s.length>n ? (s.slice(0,n-1)+'…') : s;
+  }
+
+  function computeSegmentsForSong(song){
+    // Returns an ordered list of page-segments for the song.
+    // A segment corresponds to one *book page* (left/right/full crop from a scan file).
+    const segs = [];
+
+    const key = String(song.nr);
+    const missing = !!(state.mapping && state.mapping.missingSongs && state.mapping.missingSongs[key]);
+    if(!missing){
+      // Prefer explicit mapping (same source as Bog-visningen)
+      const sb = (state.mapping && state.mapping.segmentsBySong) ? state.mapping.segmentsBySong : {};
+      const mapped = sb[key];
+      if(Array.isArray(mapped) && mapped.length){
+        for(const x of mapped){
+          if(!x || !x.file) continue;
+          segs.push({ file: x.file, region: x.region || 'full' });
+        }
+      }
+
+      // Next: song's own segments/pages (if already present)
+      if(!segs.length && Array.isArray(song.segments) && song.segments.length){
+        for(const x of song.segments){
+          if(!x || !x.file) continue;
+          segs.push({ file: x.file, region: x.region || 'full' });
+        }
+      }
+      if(!segs.length && Array.isArray(song.pages) && song.pages.length){
+        for(const f of song.pages){
+          if(!f) continue;
+          segs.push({ file: f, region: 'full' });
+        }
+      }
+
+      // Fallback: try auto pages by song nr (usually a full page)
+      if(!segs.length){
+        const pages = autoPagesForSong(song);
+        for(const f of pages){
+          segs.push({ file: f, region: 'full' });
+        }
+      }
+    }
+
+    // Enrich with per-song paging info
+    return segs.map((seg, i) => ({
+      ...seg,
+      pageInSong: i,
+      pagesInSong: segs.length,
+    }));
+  }
+
+  function buildFlatFromPlan(){
+    // Flatten the *selected plan* into a page-stream.
+    const flat = [];
+    for(let i=0;i<state.plan.length;i++){
+      const song = state.plan[i];
+      const segs = computeSegmentsForSong(song);
+      for(const seg of segs){
+        flat.push({
+          ...seg,
+          songNr: song.nr,
+          // Plan-elementer bruger feltet 'titel' (dansk). Nogle dele af viewer forventer 'title'.
+          songTitle: (song.titel ?? song.title ?? ''),
+          songIdx: i,
+        });
+      }
+    }
+    return flat;
+  }
+
+  // Find the first flat entry belonging to a given song (plan index).
+  // In flat mode we may have multiple entries per song (multi-page, split scan, etc.).
+  function findFlatStartIndexForSongIdx(songIdx){
+    if(!Array.isArray(modal.flat) || modal.flat.length===0) return 0;
+    for(let i=0;i<modal.flat.length;i++){
+      const e = modal.flat[i];
+      if(e && e.songIdx===songIdx && (e.pageInSong===0 || e.pageInSong===undefined)) return i;
+    }
+    // Fallback: first occurrence of songIdx
+    for(let i=0;i<modal.flat.length;i++){
+      const e = modal.flat[i];
+      if(e && e.songIdx===songIdx) return i;
+    }
+    return 0;
+  }
+
+  function entryLabel(e){
+    if(!e) return '';
+    const base = `(#${e.songNr}) ${e.songTitle||''}`;
+    if(e.pagesInSong && e.pagesInSong>1){
+      return `${base} — side ${e.pageInSong+1}/${e.pagesInSong}`;
+    }
+    return base;
+  }
+  async function init(){
+    // Load songs
+    const embedded = loadSongsEmbedded();
+    state._baseSongs = Array.isArray(embedded) ? embedded : [];
+    state.songs = state._baseSongs.slice();
+
+    if(!state.songs.length){
+      console.warn('Ingen indlejret songsData fundet i index.html');
+    }
+
+    // Optional override: song/title/theme data imported by the user (CSV)
+    try{
+      const raw = localStorage.getItem('sangapp_songs_override_v1');
+      if(raw){
+        const o = JSON.parse(raw);
+        if(o && Array.isArray(o.songs) && o.songs.length){
+          state.songs = o.songs;
+        }
+      }
+    }catch(e){
+      console.warn('Kunne ikke loade sangdata-override', e);
+    }
+
+    // Restore settings
+    const savedMode = localStorage.getItem('sangapp_img_mode');
+    state.img.mode = (savedMode === 'folder' || savedMode === 'relative') ? savedMode : 'auto';
+
+    // Auto-detect local ./pages folder (if present next to index.html)
+    const detectLocalPages = () => new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        // Only auto-switch if user hasn't explicitly chosen a folder earlier
+        if(state.img.mode !== 'folder'){
+          state.img.mode = 'relative';
+          localStorage.setItem('sangapp_img_mode', 'relative');
+        }
+        resolve(true);
+      };
+      img.onerror = () => resolve(false);
+      img.src = 'pages/page_001.png?cb=' + Date.now();
+    });
+
+    await detectLocalPages();
+    updateImgControls();
+
+    // Folder input
+    $("imgFolder").addEventListener('change', (e)=>{
+      const files = [...(e.target.files || [])];
+      state.img.fileMap.clear();
+      for(const f of files){
+        const name = (f.name||'').toLowerCase();
+        if(!name) continue;
+        // Create per-session object URL
+        state.img.fileMap.set(name, URL.createObjectURL(f));
+      }
+      // Keep a stable, ordered list of filenames (lowercase)
+      state.img.files = [...state.img.fileMap.keys()].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+      // If user picked a folder, make sure we're in folder mode
+      setImgMode('folder');
+      refreshBog();
+    });
+
+    // CSV import (song titles/themes)
+    function parseCsvText(text){
+      text = (text||'').split(String.fromCharCode(13)).join('').trim();
+      if(!text) return [];
+      const lines = text.split(String.fromCharCode(10)).map(l=>l.trim()).filter(Boolean);
+      if(!lines.length) return [];
+      const headerLine = lines.shift();
+      const delim = (headerLine.split(';').length > headerLine.split(',').length) ? ';' : ',';
+
+      function parseLine(line){
+        const out = [];
+        let cur = '';
+        let inQ = false;
+        for(let i=0;i<line.length;i++){
+          const ch = line[i];
+          if(ch === '"'){
+            if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+            else { inQ = !inQ; }
+            continue;
+          }
+          if(ch === delim && !inQ){
+            out.push(cur);
+            cur = '';
+            continue;
+          }
+          cur += ch;
+        }
+        out.push(cur);
+        return out.map(s=>s.trim());
+      }
+
+      const headers = parseLine(headerLine).map(h=>String(h||'').toLowerCase());
+      const rows = [];
+      for(const line of lines){
+        const cols = parseLine(line);
+        const row = {};
+        for(let i=0;i<headers.length;i++){
+          const key = headers[i] || `col${i}`;
+          row[key] = cols[i] ?? '';
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    const csvInput = document.getElementById('songsCsv');
+    const importBtn = document.getElementById('importCsv');
+    const resetBtn = document.getElementById('resetCsv');
+
+    if(importBtn){
+      importBtn.addEventListener('click', async ()=>{
+        const f = csvInput && csvInput.files && csvInput.files[0];
+        if(!f){ alert('Vælg en CSV-fil først.'); return; }
+        try{
+          const text = await f.text();
+          const rows = parseCsvText(text);
+          if(!rows.length){ alert('CSV-filen ser tom ud eller kan ikke læses.'); return; }
+          applySongOverridesFromRows(rows);
+          localStorage.setItem('sangapp_songs_override_v1', JSON.stringify({songs: state.songs}));
+
+          const themes = (function(){
+            const set = new Set();
+            for(const s of (state.songs||[])) for(const t of (s.temaer||[])) if(t) set.add(String(t));
+            for(const t of ALL_THEMES) set.add(t);
+            return [...set].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+          })();
+          $('themes').innerHTML = themes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+          $('stats').textContent = `${state.songs.length} sange · ${themes.length} temaer`;
+          renderResults('');
+          if(state.selectedThemes.length){
+            state.selectedThemes = state.selectedThemes.filter(t=>themes.includes(t));
+            [...$('themes').options].forEach(o=> o.selected = state.selectedThemes.includes(o.value));
+          }
+          toast('Sangdata importeret.');
+        }catch(err){
+          console.error(err);
+          alert('Kunne ikke importere CSV. Se console for detaljer.');
+        }
+      });
+    }
+
+    if(resetBtn){
+      resetBtn.addEventListener('click', ()=>{
+        localStorage.removeItem('sangapp_songs_override_v1');
+        state.songs = (state._baseSongs||[]).slice();
+        const themes = (function(){
+          const set = new Set();
+          for(const s of (state.songs||[])) for(const t of (s.temaer||[])) if(t) set.add(String(t));
+          for(const t of ALL_THEMES) set.add(t);
+          return [...set].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+        })();
+        $('themes').innerHTML = themes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+        $('stats').textContent = `${state.songs.length} sange · ${themes.length} temaer`;
+        state.selectedThemes = [];
+        toast('Sangdata nulstillet.');
+      });
+    }
+    function applySongOverridesFromRows(rows){
+      // rows: array of objects with nr, titel, temaer
+      const byNr = new Map((state.songs||[]).map(s=>[String(s.nr), s]));
+      for(const r of rows){
+        const nr = String(r.nr||'').trim();
+        if(!nr) continue;
+        const title = String(r.titel||r.title||'').trim();
+        const temaerRaw = String(r.temaer||r.themes||'').trim();
+        const themes = temaerRaw ? temaerRaw.split(/\s*[|;]\s*/).filter(Boolean) : [];
+        let song = byNr.get(nr);
+        if(!song){
+          song = {nr: int(nr), titel:'', temaer:[]};
+          state.songs.push(song);
+          byNr.set(nr, song);
+        }
+        if(title) song.titel = title;
+        song.temaer = themes;
+      }
+      state.songs.sort((a,b)=> (a.nr||0) - (b.nr||0));
+    }
+
+    const themes = (function(){
+      const set = new Set();
+      for(const s of (state.songs||[])){
+        for(const t of (s.temaer||[])){ if(t) set.add(String(t)); }
+      }
+      // Keep known themes too, so UI stays familiar
+      for(const t of ALL_THEMES){ set.add(t); }
+      return [...set].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+    })();
+    $("themes").innerHTML = themes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    $("stats").textContent = `${state.songs.length} sange · ${themes.length} temaer`;
+
+    // Restore last sangtime (if any)
+    restorePlanFromLocal();
+
+    renderResults('');
+    renderPlan();
+
+    loadMapping();
+    applyMappingToSongs();
+    refreshBog();
+  }
+
+  // Tabs
+  document.querySelectorAll('[data-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('[data-view]').forEach(v=>{
+        v.classList.toggle('show', v.dataset.view === tab);
+      });
+    });
+  });
+
+  // Help modal
+  const helpModal = $("helpModal");
+  const helpBtn = $("helpBtn");
+  const helpClose = $("helpClose");
+  function openHelp(){ helpModal.classList.add('open'); helpModal.setAttribute('aria-hidden','false'); }
+  function closeHelp(){ helpModal.classList.remove('open'); helpModal.setAttribute('aria-hidden','true'); }
+  helpBtn.addEventListener('click', openHelp);
+  helpClose.addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', (e)=>{ if(e.target===helpModal) closeHelp(); });
+
+
+
+  // --- Missing-song helper ("#65 mangler — opret som tom mapping?") ---
+  const missingPanel = $("missingPanel");
+  const missingCount = $("missingCount");
+  const missingList = $("missingList");
+  const missingRefresh = $("missingRefresh");
+  const missingSuggest = $("missingSuggest");
+  const missingCreate = $("missingCreate");
+
+  function computeMissingSongs(){
+    const out = [];
+    for(const s of state.songs){
+      const k = String(s.nr);
+      const segs = state.mapping.segmentsBySong[k];
+      const hasSegs = Array.isArray(segs) && segs.length > 0;
+      const flaggedMissing = !!state.mapping.missingSongs[k];
+      if(!hasSegs && !flaggedMissing) out.push(s);
+    }
+    out.sort((a,b)=>a.nr-b.nr);
+    return out;
+  }
+
+  function renderMissingPanel(){
+    if(!missingPanel) return;
+    const missing = computeMissingSongs();
+    if(!missing.length){
+      missingPanel.style.display = 'none';
+      return;
+    }
+    missingPanel.style.display = 'block';
+    missingCount.textContent = String(missing.length);
+
+    const first = missing[0];
+    missingSuggest.textContent = `#${first.nr} mangler — opret som tom mapping?`;
+    missingCreate.onclick = ()=>{
+      state.mapping.missingSongs[String(first.nr)] = true;
+      saveMapping();
+      applyMappingToSongs();
+      toast(`#${first.nr} markeret som mangler`);
+      renderMissingPanel();
+    };
+
+    // List (first 60)
+    missingList.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.display = 'flex';
+    wrap.style.flexWrap = 'wrap';
+    wrap.style.gap = '8px';
+    wrap.style.alignItems = 'center';
+
+    const show = missing.slice(0,60);
+    for(const s of show){
+      const chip = document.createElement('span');
+      chip.className = 'pill';
+      chip.textContent = `#${s.nr} ${s.titel}`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary';
+      btn.textContent = 'Opret tom';
+      btn.addEventListener('click', ()=>{
+        state.mapping.missingSongs[String(s.nr)] = true;
+        saveMapping();
+        applyMappingToSongs();
+        toast(`#${s.nr} markeret som mangler`);
+        renderMissingPanel();
+      });
+      wrap.appendChild(chip);
+      wrap.appendChild(btn);
+    }
+    if(missing.length > show.length){
+      const more = document.createElement('span');
+      more.style.color = 'var(--muted)';
+      more.style.fontSize = '12px';
+      more.textContent = `+ ${missing.length - show.length} flere`;
+      wrap.appendChild(more);
+    }
+    missingList.appendChild(wrap);
+  }
+
+  if(missingRefresh) missingRefresh.addEventListener('click', ()=>renderMissingPanel());
+
+  // Bog / mapping handlers
+  function currentPageName(){
+    const idx = Math.max(1, parseInt($("pageIndex").value||'1',10));
+    return state.img.files[idx-1] || null;
+  }
+
+  function regionKey(pageName, region){
+    return `${pageName}|${region}`;
+  }
+
+  function getAssigned(pageName, region){
+    const key = regionKey(pageName, region);
+    const v = state.mapping.regionSong[key];
+    const n = v ? parseInt(v,10) : null;
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function songTitle(nr){
+    const s = state.songs.find(x=>x.nr===nr);
+    return s ? s.titel : '';
+  }
+
+  function refreshBog(){
+    if(!$("pageImg")) return;
+    const total = state.img.files.length || 0;
+    let idx = parseInt($("pageIndex").value||'1',10);
+    if(!Number.isFinite(idx) || idx < 1) idx = 1;
+    if(total && idx > total) idx = total;
+    $("pageIndex").value = String(idx);
+
+    const name = currentPageName();
+    if(!name){
+      $("pageImg").removeAttribute('src');
+      $("pageMeta").textContent = total ? 'Ingen fil ved dette index.' : 'Vælg først en billedmappe under Temaer (Lokal mappe).';
+      return;
+    }
+    $("pageImg").src = resolvePageSrc(name);
+
+    const left = getAssigned(name,'left');
+    const right = getAssigned(name,'right');
+    const full = getAssigned(name,'full');
+
+    $("assignLeft").value = left ? String(left) : '';
+    $("assignRight").value = right ? String(right) : '';
+
+    const parts = [`Scanfil: <code>${esc(name)}</code> · ${total} filer`];
+    if(full){ parts.push(`· <b>FULL</b> → #${full} ${esc(songTitle(full))}`); }
+    parts.push(`· Venstre: ${left ? `<b>#${left}</b> ${esc(songTitle(left))}` : '<span style="color:var(--muted)">—</span>'}`);
+    parts.push(`· Højre: ${right ? `<b>#${right}</b> ${esc(songTitle(right))}` : '<span style="color:var(--muted)">—</span>'}`);
+    $("pageMeta").innerHTML = parts.join(' ');
+
+    // Keep missing-song helper in sync
+    renderMissingPanel();
+  }
+
+  function removeSegmentFromSong(songNr, pageName, region){
+    const key = String(songNr);
+    const arr = state.mapping.segmentsBySong[key];
+    if(!Array.isArray(arr)) return;
+    state.mapping.segmentsBySong[key] = arr.filter(seg => !(seg && seg.file===pageName && seg.region===region));
+  }
+
+  function addSegmentToSong(songNr, pageName, region){
+    const key = String(songNr);
+    const arr = Array.isArray(state.mapping.segmentsBySong[key]) ? state.mapping.segmentsBySong[key] : [];
+    // avoid duplicates
+    if(!arr.some(seg => seg && seg.file===pageName && seg.region===region)){
+      arr.push({file: pageName, region});
+    }
+    state.mapping.segmentsBySong[key] = arr;
+  }
+
+  function bindRegionToSong(pageName, region, songNr){
+    if(!pageName || !region || !songNr) return;
+
+    const key = regionKey(pageName, region);
+
+    // If this region was bound to another song, remove it there
+    const prevSong = state.mapping.regionSong[key];
+    if(prevSong && prevSong !== String(songNr)){
+      removeSegmentFromSong(prevSong, pageName, region);
+    }
+
+    // Also: if this song previously had this region bound elsewhere, keep it (we allow multi segments).
+    state.mapping.regionSong[key] = String(songNr);
+    addSegmentToSong(songNr, pageName, region);
+
+    saveMapping();
+    applyMappingToSongs();
+  }
+
+  function clearBinding(pageName, region){
+    if(!pageName || !region) return;
+    const key = regionKey(pageName, region);
+    const prevSong = state.mapping.regionSong[key];
+    if(prevSong){
+      removeSegmentFromSong(prevSong, pageName, region);
+      delete state.mapping.regionSong[key];
+      saveMapping();
+      applyMappingToSongs();
+    }
+  }
+
+  function gotoNextPage(){
+    const total = state.img.files.length || 0;
+    let idx = parseInt($("pageIndex").value||'1',10);
+    if(!Number.isFinite(idx)) idx = 1;
+    idx = idx + 1;
+    if(total && idx > total) idx = total;
+    $("pageIndex").value = String(idx);
+    refreshBog();
+  }
+
+  $("pagePrev").addEventListener('click', ()=>{ $("pageIndex").value = String(Math.max(1, (parseInt($("pageIndex").value||'1',10) || 1) - 1)); refreshBog(); });
+  $("pageNext").addEventListener('click', ()=>{ $("pageIndex").value = String((parseInt($("pageIndex").value||'1',10) || 1) + 1); refreshBog(); });
+  $("pageIndex").addEventListener('input', ()=> refreshBog());
+
+  $("setLeftBtn").addEventListener('click', ()=>{
+    const page = currentPageName();
+    const songNr = parseInt($("assignLeft").value||'',10);
+    if(!page || !Number.isFinite(songNr)) { toast('Skriv sangnummer til venstre'); return; }
+    bindRegionToSong(page,'left',songNr);
+    toast('Venstre sat');
+    gotoNextPage();
+  });
+  $("clearLeftBtn").addEventListener('click', ()=>{
+    const page = currentPageName();
+    if(!page) return;
+    clearBinding(page,'left');
+    toast('Venstre fjernet');
+    refreshBog();
+  });
+
+  $("setRightBtn").addEventListener('click', ()=>{
+    const page = currentPageName();
+    const songNr = parseInt($("assignRight").value||'',10);
+    if(!page || !Number.isFinite(songNr)) { toast('Skriv sangnummer til højre'); return; }
+    bindRegionToSong(page,'right',songNr);
+    toast('Højre sat');
+    gotoNextPage();
+  });
+  $("clearRightBtn").addEventListener('click', ()=>{
+    const page = currentPageName();
+    if(!page) return;
+    clearBinding(page,'right');
+    toast('Højre fjernet');
+    refreshBog();
+  });
+
+  $("mapExport").addEventListener('click', ()=>{
+    const data = { version: 2, updated: new Date().toISOString(), segmentsBySong: state.mapping.segmentsBySong, regionSong: state.mapping.regionSong, missingSongs: state.mapping.missingSongs };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sangapp_mapping_v2.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  });
+
+  $("mapImport").addEventListener('change', async (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    try{
+      const txt = await f.text();
+      const m = JSON.parse(txt);
+
+      if(m && (m.version===2 || m.segmentsBySong || m.regionSong)){
+        state.mapping.version = 2;
+        state.mapping.segmentsBySong = (m.segmentsBySong && typeof m.segmentsBySong==='object') ? m.segmentsBySong : {};
+        state.mapping.regionSong = (m.regionSong && typeof m.regionSong==='object') ? m.regionSong : {};
+        state.mapping.missingSongs = (m.missingSongs && typeof m.missingSongs==='object') ? m.missingSongs : {};
+      } else {
+        // v1 migration
+        const sp = (m && m.songPages) ? m.songPages : {};
+        const seg = {};
+        const rs = {};
+        for(const [songNr,pages] of Object.entries(sp)){
+          if(!Array.isArray(pages)) continue;
+          seg[songNr] = pages.map(fn=>({file: fn, region:'full'}));
+          for(const fn of pages){ rs[`${fn}|full`] = String(songNr); }
+        }
+        state.mapping.version = 2;
+        state.mapping.segmentsBySong = seg;
+        state.mapping.regionSong = rs;
+        state.mapping.missingSongs = {};
+      }
+
+      saveMapping();
+      applyMappingToSongs();
+      toast('Mapping importeret');
+      refreshBog();
+    }catch(err){
+      console.error(err);
+      toast('Kunne ikke importere JSON');
+    }
+  });
+
+// Generator
+  $("generate").addEventListener('click', ()=>{
+    const themes = selectedThemes();
+    let want = parseInt($("count").value,10);
+    if(!Number.isFinite(want) || want < 1) want = 1;
+    // gem valg til visning/regenerering
+    state.lastGen = { themes: themes.slice(), count: want };
+    const pool = state.songs.filter(s=>matchesThemes(s,themes));
+    if(!pool.length){
+      toast("Ingen sange matcher de valgte temaer");
+      state.plan = [];
+      renderPlan();
+      document.querySelector('[data-tab="plan"]').click();
+      return;
+    }
+    want = Math.min(want, pool.length);
+    const shuffled = pool.slice().sort(()=>Math.random()-0.5);
+    state.plan = shuffled.slice(0,want);
+    renderPlan();
+    toast(`Genereret ${state.plan.length} sange`);
+    document.querySelector('[data-tab="plan"]').click();
+  });
+
+  $("clearThemes").addEventListener('click', ()=>{
+    [...$("themes").options].forEach(o=>o.selected=false);
+  });
+
+  // Søg
+  $("search").addEventListener('input', (e)=>renderResults(e.target.value));
+
+  function renderResults(q){
+    const query = norm(q.trim());
+    const list = state.songs
+      .filter(s=> !query || norm(s.titel).includes(query) || (s.aliaser||[]).some(a=>norm(a).includes(query)))
+      .sort((a,b)=>a.nr-b.nr)
+      .slice(0,50);
+
+    $("results").innerHTML = list.map((s,idx)=>`
+      <div class="item">
+        <div class="meta">
+          <div class="t">${idx+1}) <span style="color:var(--muted);font-weight:900">#${s.nr}</span> ${esc(s.titel)}</div>
+          <div class="s">${esc((s.temaer||[]).slice(0,5).join(' · '))}</div>
+        </div>
+        <div class="acts">
+          <button class="icon small" data-add="${s.nr}" type="button" title="Tilføj til sangtime">+</button>
+        </div>
+      </div>
+    `).join('');
+
+    $("results").querySelectorAll('[data-add]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const nr = parseInt(b.dataset.add,10);
+        const song = state.songs.find(x=>x.nr===nr);
+        if(song && !state.plan.some(p=>p.nr===nr)){
+          state.plan.push(song);
+          renderPlan();
+          toast(`Tilføjet: ${song.nr}. ${song.titel}`);
+          const card = b.closest('.item');
+          if(card){ card.classList.add('flash'); setTimeout(()=>card.classList.remove('flash'), 400); }
+        }
+      });
+    });
+  }
+
+  // Plan
+  $("shuffle").addEventListener('click', ()=>{ state.plan = state.plan.slice().sort(()=>Math.random()-0.5); renderPlan(); });
+  $("clearPlan").addEventListener('click', ()=>{ state.plan=[]; renderPlan(); });
+
+  // Gem + Arkiv
+  const archiveModal = $("archiveModal");
+  function openArchive(){ archiveModal.classList.add('open'); archiveModal.setAttribute('aria-hidden','false'); renderArchive(); }
+  function closeArchive(){ archiveModal.classList.remove('open'); archiveModal.setAttribute('aria-hidden','true'); }
+  $("archiveClose").addEventListener('click', closeArchive);
+  archiveModal.addEventListener('click', (e)=>{ if(e.target===archiveModal) closeArchive(); });
+
+  function renderArchive(){
+    const list = $("archiveList");
+    const empty = $("archiveEmpty");
+    const a = _getArchive();
+    if(!a.length){
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    list.innerHTML = a.map(entry=>{
+      const n = Array.isArray(entry.planNrs) ? entry.planNrs.length : 0;
+      const themes = (entry.lastGen && Array.isArray(entry.lastGen.themes) && entry.lastGen.themes.length) ? entry.lastGen.themes.join(' · ') : '';
+      return `        <div class="item" style="padding:10px 12px;gap:10px">          <div class="meta" style="min-width:0">            <div class="t" style="font-weight:900">${esc(entry.title||'Sangtime')}</div>            <div class="s" style="color:var(--muted)">${esc(entry.date||'')} · ${n} sange${themes?(' · '+esc(themes)):''}</div>          </div>          <div class="acts" style="flex:0 0 auto">            <button class="icon small" data-arch-load="${esc(entry.id)}" type="button" title="Indlæs">↩</button>            <button class="icon small" data-arch-dl="${esc(entry.id)}" type="button" title="Download JSON">⤓</button>            <button class="icon small remove" data-arch-del="${esc(entry.id)}" type="button" title="Slet">✕</button>          </div>        </div>`;
+    }).join('');
+
+    list.querySelectorAll('[data-arch-load]').forEach(b=>b.addEventListener('click', ()=>{
+      const id = b.dataset.archLoad;
+      const a = _getArchive();
+      const entry = a.find(x=>x.id===id);
+      if(!entry) return;
+      const byNr = new Map((state.songs||[]).map(s=>[String(s.nr), s]));
+      const restored = [];
+      for(const nr of (entry.planNrs||[])){
+        const s = byNr.get(String(nr));
+        if(s) restored.push(s);
+      }
+      state.plan = restored;
+      if(entry.lastGen){ state.lastGen = { themes: (entry.lastGen.themes||[]).slice(), count: entry.lastGen.count||9 }; }
+      renderPlan();
+      closeArchive();
+      toast(`Indlæst: ${entry.title||'Sangtime'}`);
+    }));
+
+    list.querySelectorAll('[data-arch-dl]').forEach(b=>b.addEventListener('click', ()=>{
+      const id = b.dataset.archDl;
+      const entry = _getArchive().find(x=>x.id===id);
+      if(!entry) return;
+      downloadJSON(entry, `${(entry.title||'Sangtime').replace(/[^a-z0-9_-]+/ig,'_')}.json`);
+    }));
+
+    list.querySelectorAll('[data-arch-del]').forEach(b=>b.addEventListener('click', ()=>{
+      const id = b.dataset.archDel;
+      const a = _getArchive().filter(x=>x.id!==id);
+      _setArchive(a);
+      renderArchive();
+    }));
+  }
+
+  $("openArchive").addEventListener('click', ()=>openArchive());
+
+  $("savePlan").addEventListener('click', ()=>{
+    if(!state.plan.length){ toast('Sangtimen er tom'); return; }
+    // NOTE: Browsere kan ikke skrive direkte til en "arkiv"-mappe på disken.
+    // Derfor: gem i localStorage-arkiv + download JSON, som du kan lægge i /arkiv manuelt.
+    const entry = addCurrentPlanToArchive();
+    saveCurrentPlanToLocal();
+    downloadJSON(entry, `Sangtime_${entry.date||_todayISO()}.json`);
+    toast('Gemt (download + arkiv)');
+  });
+
+  $("regenPlan").addEventListener('click', ()=>{
+    const themes = (state.lastGen && Array.isArray(state.lastGen.themes)) ? state.lastGen.themes : [];
+    let want = parseInt($("count").value,10);
+    if(!Number.isFinite(want) || want < 1) want = (state.lastGen && state.lastGen.count) ? state.lastGen.count : 9;
+    const pool = state.songs.filter(s=>matchesThemes(s,themes));
+    if(!pool.length){
+      toast('Ingen sange matcher de valgte temaer');
+      return;
+    }
+    want = Math.min(want, pool.length);
+    const shuffled = pool.slice().sort(()=>Math.random()-0.5);
+    state.plan = shuffled.slice(0,want);
+    renderPlan();
+    toast(`Genereret ${state.plan.length} sange`);
+  });
+
+  $("editThemes").addEventListener('click', ()=>{
+    document.querySelector('[data-tab="temaer"]').click();
+    // sørg for at de sidst brugte temaer er markeret
+    const set = new Set((state.lastGen && state.lastGen.themes) ? state.lastGen.themes : []);
+    [...$("themes").options].forEach(o=>o.selected = set.has(o.value));
+  });
+
+
+  let dragFrom = null;
+
+  function renderPlan(){
+    const metaEl = $("planMeta");
+    if(metaEl){
+      const t = (state.lastGen && Array.isArray(state.lastGen.themes)) ? state.lastGen.themes : [];
+      metaEl.innerHTML = t.length ? `Temaer: <b>${esc(t.join(' · '))}</b>` : 'Temaer: <span style="color:var(--muted)">(alle)</span>';
+    }
+
+    const el = $("plan");
+    el.innerHTML = state.plan.map((s,idx)=>`
+      <div class="item" draggable="true" data-idx="${idx}">
+        <div class="drag" title="Træk (desktop) / markér (mobil) — brug ▲▼">≡</div>
+        <div class="meta">
+          <div class="t">${idx+1}) <span style="color:var(--muted);font-weight:900">#${s.nr}</span> ${esc(s.titel)}</div>
+          <div class="s">${esc((s.temaer||[]).slice(0,5).join(' · '))}</div>
+        </div>
+        <div class="acts">
+          ${idx>0 ? `<button class="icon small" data-up="${idx}" type="button" aria-label="Flyt op" title="Flyt op">▲</button>` : ``}
+          ${idx<plan.length-1 ? `<button class="icon small" data-down="${idx}" type="button" aria-label="Flyt ned" title="Flyt ned">▼</button>` : ``}
+          <button class="icon open" data-open="${s.nr}" type="button">↗</button>
+          <button class="icon remove" data-remove="${s.nr}" type="button">✕</button>
+        </div>
+      </div>
+    `).join('');
+
+    el.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click', ()=>{
+      const nr = parseInt(b.dataset.remove,10);
+      state.plan = state.plan.filter(x=>x.nr!==nr);
+      renderPlan();
+    }));
+    el.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click', ()=>openSong(parseInt(b.dataset.open,10))));
+    el.querySelectorAll('[data-up]').forEach(b=>b.addEventListener('click', ()=>move(parseInt(b.dataset.up,10), -1)));
+    el.querySelectorAll('[data-down]').forEach(b=>b.addEventListener('click', ()=>move(parseInt(b.dataset.down,10), +1)));
+
+    // Desktop drag-drop
+    el.querySelectorAll('[draggable]').forEach(item=>{
+      item.addEventListener('dragstart', ()=>{ dragFrom = parseInt(item.dataset.idx,10); });
+      item.addEventListener('dragover', (e)=>e.preventDefault());
+      item.addEventListener('drop', ()=>{
+        const to = parseInt(item.dataset.idx,10);
+        if(dragFrom===null || dragFrom===to) return;
+        const arr = state.plan.slice();
+        const [m] = arr.splice(dragFrom,1);
+        arr.splice(to,0,m);
+        state.plan = arr;
+        dragFrom=null;
+        renderPlan();
+      });
+    });
+
+    // Autosave current sangtime
+    saveCurrentPlanToLocal();
+  }
+
+  function move(idx, dir){
+    const to = idx + dir;
+    if(to < 0 || to >= state.plan.length) return;
+    const arr = state.plan.slice();
+    const [m] = arr.splice(idx,1);
+    arr.splice(to,0,m);
+    state.plan = arr;
+    renderPlan();
+  }
+
+  // Viewer
+  function openSong(nr){
+    // Prefer opening in the context of the current plan (sangtime)
+    const idxInPlan = state.plan.findIndex(s=>s.nr===nr);
+    if(idxInPlan >= 0){
+      openSongAtPlanIndex(idxInPlan);
+      return;
+    }
+    // Fallback: open from full catalogue
+    const song = state.songs.find(s=>s.nr===nr);
+    if(!song) return;
+    state.modal.song = song;
+    state.modal.songIdx = -1;
+    state.modal.pageIdx = 0;
+    $("mTitle").textContent = state.modal.songIdx>=0 ? `${state.modal.songIdx+1}. (#${song.nr}) ${song.titel}` : `(#${song.nr}) ${song.titel}`;
+    $("modal").classList.add('open');
+    $("modal").setAttribute('aria-hidden','false');
+    renderPage();
+  }
+
+  function openSongAtPlanIndex(idx){
+    if(!state.plan.length) return;
+    const safeIdx = ((idx % state.plan.length) + state.plan.length) % state.plan.length;
+
+    state.modal.mode = 'spread';
+    state.modal.songIdx = safeIdx;
+    state.modal.song = state.plan[safeIdx];
+    state.modal.offset = 0; // intra-song offset (step=2)
+    state.modal.pageIdx = 0; // legacy
+
+    $("modal").classList.add('open');
+    $("modal").setAttribute('aria-hidden','false');
+    renderPage();
+  }
+
+function closeSong(){
+    $("modal").classList.remove('open');
+    $("modal").setAttribute('aria-hidden','true');
+    state.modal.song=null; state.modal.songIdx=-1; state.modal.pageIdx=0;
+    $("mPages").innerHTML='';
+    $("mPageInfo").textContent='';
+    $("mFrame").classList.remove('is-two');
+  }
+  function renderPage(){
+    const clearModal = () => {
+      $("mPages").innerHTML = '';
+      $("mPageInfo").textContent = '';
+      $("mMsg").style.display = 'none';
+      $("mFrame").classList.add('is-two');
+    };
+
+    // ===============
+    // Spread mode (Sangtime): always exactly 2 pages
+    // ===============
+    if(state.modal && state.modal.mode==='spread'){
+      const inPlan = state.modal.songIdx >= 0 && Array.isArray(state.plan) && state.plan.length>0;
+
+      // If the user expects local folder images but hasn't picked them yet, show a clear hint.
+      if(inPlan && state.img.mode==='folder' && (!state.img.fileMap || state.img.fileMap.size===0)){
+        clearModal();
+        $("mMsg").style.display = 'block';
+        $("mMsg").textContent = 'Vælg først billedmappen under “Temaer” (lokale scanfiler), så kan noderne vises her.';
+        return;
+      }
+
+      if(inPlan){
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        const getPlanSong = (idx) => (idx>=0 && idx<state.plan.length) ? state.plan[idx] : null;
+
+        const getSongSegmentsForPlanIdx = (idx) => {
+          const song = getPlanSong(idx);
+          if(!song) return [];
+          const key = String(song.nr);
+          if(state.mapping && state.mapping.missingSongs && state.mapping.missingSongs[key]) return [];
+
+          const out = [];
+          const sb = (state.mapping && state.mapping.segmentsBySong) ? state.mapping.segmentsBySong : {};
+          const mapped = sb[key];
+          if(Array.isArray(mapped) && mapped.length){
+            for(const x of mapped){
+              if(x && x.file) out.push({ file: x.file, region: (x.region || 'full') });
+            }
+          }
+
+          if(!out.length){
+            if(Array.isArray(song.segments) && song.segments.length){
+              for(const x of song.segments){
+                if(x && x.file) out.push({ file: x.file, region: (x.region || 'full') });
+              }
+            } else if(Array.isArray(song.pages) && song.pages.length){
+              for(const fn of song.pages){
+                if(fn) out.push({ file: fn, region: 'full' });
+              }
+            } else {
+              const pages = autoPagesForSong(song);
+              for(const fn of pages){
+                if(fn) out.push({ file: fn, region: 'full' });
+              }
+            }
+          }
+
+          return out;
+        };
+
+        const lastOffsetForPlanIdx = (idx) => {
+          const segs = getSongSegmentsForPlanIdx(idx);
+          const n = segs.length;
+          if(n<=1) return 0;
+          return (n % 2 === 0) ? Math.max(0, n-2) : Math.max(0, n-1);
+        };
+
+        const resolveSegSrc = (seg) => {
+          if(!seg || !seg.file) return '';
+          return resolvePageSrc(seg.file) || '';
+        };
+
+        const buildSpread = (songIdx, offset) => {
+          songIdx = clamp(songIdx, 0, state.plan.length-1);
+          offset = Math.max(0, offset|0);
+
+          const leftSong = getPlanSong(songIdx);
+          const leftSegs = getSongSegmentsForPlanIdx(songIdx);
+          const leftSeg = (leftSegs.length && offset < leftSegs.length) ? leftSegs[offset] : null;
+          const rightSegSame = (leftSegs.length && (offset+1) < leftSegs.length) ? leftSegs[offset+1] : null;
+
+          const nextSongIdx = clamp(songIdx+1, 0, state.plan.length-1);
+          const nextSong = (nextSongIdx!==songIdx) ? getPlanSong(nextSongIdx) : null;
+          const nextSegs = (nextSongIdx!==songIdx) ? getSongSegmentsForPlanIdx(nextSongIdx) : [];
+          const nextFirst = nextSegs.length ? nextSegs[0] : null;
+
+          const rightSongIdx = rightSegSame ? songIdx : (nextSongIdx!==songIdx ? nextSongIdx : songIdx);
+          const rightSong = rightSegSame ? leftSong : nextSong;
+          const rightSeg = rightSegSame ? rightSegSame : nextFirst;
+
+          return {
+            left:  { songIdx: songIdx,      song: leftSong,  seg: leftSeg,  segs: leftSegs,  offset: offset },
+            right: { songIdx: rightSongIdx, song: rightSong, seg: rightSeg, segs: (rightSongIdx===songIdx ? leftSegs : nextSegs), offset: (rightSongIdx===songIdx ? offset+1 : 0) }
+          };
+        };
+
+        const renderSlot = (slot) => {
+          const wrap = document.createElement('div');
+          wrap.className = 'mpage';
+
+          const song = slot && slot.song;
+          const seg = slot && slot.seg;
+          const src = resolveSegSrc(seg);
+
+          if(!src){
+            const nr = song ? song.nr : '';
+            const title = song ? (song.titel ?? song.title ?? '') : '';
+            const missKey = song ? String(song.nr) : '';
+            const isMissing = !!(missKey && state.mapping && state.mapping.missingSongs && state.mapping.missingSongs[missKey]);
+            const msg = isMissing ? 'Ingen scan (markeret som mangler)' : 'Ingen scan for denne sang';
+            wrap.classList.add('placeholder');
+            wrap.innerHTML = `${msg}${nr ? `<br><span style="opacity:.8">#${nr} ${esc(title)}</span>` : ''}`;
+            return wrap;
+          }
+
+          const region = (seg && seg.region) ? seg.region : 'full';
+          const crop = document.createElement('div');
+          crop.className = `crop ${region}`;
+
+          const img = document.createElement('img');
+          img.alt = '';
+          img.src = src;
+
+          crop.appendChild(img);
+          wrap.appendChild(crop);
+          return wrap;
+        };
+
+        // Sync indices
+        state.modal.songIdx = clamp(state.modal.songIdx|0, 0, state.plan.length-1);
+        state.modal.offset = Math.max(0, state.modal.offset|0);
+        state.modal.song = getPlanSong(state.modal.songIdx);
+
+        // Clamp offset within current song
+        const curSegs = getSongSegmentsForPlanIdx(state.modal.songIdx);
+        if(curSegs.length && state.modal.offset >= curSegs.length) state.modal.offset = lastOffsetForPlanIdx(state.modal.songIdx);
+        if(!curSegs.length) state.modal.offset = 0;
+
+        const spread = buildSpread(state.modal.songIdx, state.modal.offset);
+
+        // Render
+        $("mPages").innerHTML = '';
+        $("mPages").appendChild(renderSlot(spread.left));
+        $("mPages").appendChild(renderSlot(spread.right));
+        $("mFrame").classList.add('is-two');
+        $("mMsg").style.display = 'none';
+
+        // Header
+        const lt = spread.left.song ? (spread.left.song.titel ?? spread.left.song.title ?? '') : '';
+        const rt = spread.right.song ? (spread.right.song.titel ?? spread.right.song.title ?? '') : '';
+        const leftLabel = `${spread.left.songIdx+1}. (#${spread.left.song ? spread.left.song.nr : ''}) ${truncTitle(lt, 40)}`;
+        const rightLabel = (spread.right.songIdx!==spread.left.songIdx && spread.right.song) ? `${spread.right.songIdx+1}. (#${spread.right.song.nr}) ${truncTitle(rt, 40)}` : '';
+        $("mTitle").textContent = rightLabel ? `${leftLabel}  |  ${rightLabel}` : leftLabel;
+
+        // Indicator
+        const curN = curSegs.length;
+        if(curN<=1){
+          $("mPageInfo").textContent = `${state.modal.songIdx+1}/${state.plan.length}`;
+        } else {
+          const a = Math.min(state.modal.offset+1, curN);
+          const b = Math.min(state.modal.offset+2, curN);
+          $("mPageInfo").textContent = `${state.modal.songIdx+1}/${state.plan.length} · ${a}-${b}/${curN}`;
+        }
+
+        // Debug (toggle via Debug-knap)
+        if(state.modal.debug){
+          console.log('[Viewer] img.mode=', state.img.mode);
+          console.log('[Viewer] songIdx=', state.modal.songIdx, 'songNo=', spread.left.song && spread.left.song.nr, 'offset=', state.modal.offset, 'pages=', curSegs.map(x=>x.file));
+          console.log('[Viewer] left=', spread.left.seg && spread.left.seg.file, 'src=', resolveSegSrc(spread.left.seg));
+          console.log('[Viewer] right=', spread.right.seg && spread.right.seg.file, 'src=', resolveSegSrc(spread.right.seg));
+        }
+
+        // Nav button state
+        const atStart = (state.modal.songIdx===0 && state.modal.offset===0);
+        const hasNextSong = (state.modal.songIdx < state.plan.length-1);
+        const canPageForward = (curSegs.length && (state.modal.offset + 2) < curSegs.length);
+        const atEnd = !hasNextSong && !canPageForward;
+        $("prevSong").disabled = atStart;
+        $("nextSong").disabled = atEnd;
+        $("prevSong").style.visibility = atStart ? "hidden" : "visible";
+        $("nextSong").style.visibility = atEnd ? "hidden" : "visible";
+
+        // Click navigation: venstre side = tilbage, højre side = frem
+        // (fungerer både når siderne står side-om-side og når de stacker på mobil)
+        try{
+          const kids = Array.from($("mPages").children);
+          kids.forEach((node, i)=>{
+            node.style.cursor = 'pointer';
+            node.onclick = (e)=>{
+              e.stopPropagation();
+              if(i===0) $("prevSong").click();
+              else $("nextSong").click();
+            };
+          });
+        }catch(e){ /* ignore */ }
+
+        return;
+      }
+      // If not inPlan, fall through to legacy single-song viewer.
+    }
+
+    // ===============
+    // Legacy single-song mode (catalogue open)
+    // ===============
+    const s = state.modal.song;
+    if(!s) return;
+
+    // Preferred: explicit segments mapping
+    let segments = (s.segments && Array.isArray(s.segments) && s.segments.length) ? s.segments.slice() : null;
+
+    // Backward compat: pages[] -> segments full
+    if(!segments){
+      const pages = (s.pages && s.pages.length) ? s.pages : null;
+      if(pages && pages.length){
+        segments = pages.map(fn=>({file: fn, region:'full'}));
+      }
+    }
+
+    // Fallback: autoPagesForSong
+    if(!segments){
+      const pages = autoPagesForSong(s);
+      segments = pages.map(fn=>({file: fn, region:'full'}));
+    }
+
+    // Message strip (used when scan is missing)
+    const missFlag = !!state.mapping.missingSongs[String(s.nr)];
+
+    if(!segments.length){
+      $("mPages").innerHTML='';
+      $("mFrame").classList.remove('is-two');
+      $("mMsg").style.display = 'block';
+      $("mMsg").textContent = missFlag ? `#${s.nr} mangler i dine scan-billeder (markeret som "mangler").` : `Ingen sidebilleder fundet for #${s.nr}. Du kan mappe den i fanen Bog, eller markere den som "mangler".`;
+      $("mPageInfo").textContent='';
+      const inPlan = state.modal.songIdx >= 0 && state.plan.length > 0;
+      $("prevSong").disabled = !inPlan || state.plan.length < 2;
+      $("nextSong").disabled = !inPlan || state.plan.length < 2;
+      $("nextSong").title = 'Næste sang';
+      return;
+    }
+
+    // If we have pages, hide the message strip
+    $("mMsg").style.display = 'none';
+
+    // Visning:
+    // - 1 side: vis én stor side (som før)
+    // - 2 sider: vis begge sider ved siden af hinanden
+    // - 3+ sider: vis én side ad gangen (næste-knap går frem side-for-side, og skifter sang når man er på sidste side)
+    const multi = segments.length;
+    const showTwo = (multi === 2);
+    const paged = (multi >= 3);
+    if(paged){
+      state.modal.pageIdx = Math.max(0, Math.min(state.modal.pageIdx, segments.length-1));
+    } else {
+      state.modal.pageIdx = 0;
+    }
+
+    const visible = paged ? [segments[state.modal.pageIdx]] : segments.slice(0, showTwo ? 2 : 1);
+
+    $("mFrame").classList.toggle('is-two', visible.length===2);
+    $("mPages").innerHTML = '';
+    visible.forEach(seg=>{
+      const file = seg.file;
+      const region = seg.region || 'full';
+      const wrap = document.createElement('div');
+      wrap.className = 'mpage';
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = resolvePageSrc(file) || '';
+      // Apply region cropping (left/right/full)
+      if(region==='left'){
+        img.style.width = '200%';
+        img.style.transform = 'translateX(0)';
+      } else if(region==='right'){
+        img.style.width = '200%';
+        img.style.transform = 'translateX(-50%)';
+      } else {
+        img.style.width = '100%';
+        img.style.transform = 'translateX(0)';
+      }
+      wrap.appendChild(img);
+      $("mPages").appendChild(wrap);
+    });
+
+    // Info + knap-adfærd
+    if(multi<=1){
+      $("mPageInfo").textContent = '';
+    } else if(multi===2){
+      $("mPageInfo").textContent = '2 sider';
+    } else {
+      $("mPageInfo").textContent = `${state.modal.pageIdx+1}/${multi}`;
+    }
+
+    const inPlan = state.modal.songIdx >= 0 && state.plan.length > 0;
+    $("prevSong").disabled = !inPlan || state.plan.length < 2;
+    $("nextSong").disabled = !inPlan || state.plan.length < 2;
+
+    // Next-knap: side frem hvis 3+ sider og der er flere sider tilbage, ellers næste sang
+    if(!inPlan || state.plan.length < 2){
+      $("nextSong").title = 'Næste';
+    } else if(multi>=3 && state.modal.pageIdx < multi-1){
+      $("nextSong").title = 'Næste side';
+    } else {
+      $("nextSong").title = 'Næste sang';
+    }
+  }
+
+
+  // Song navigation (within the selected sangtime)
+  $("prevSong").addEventListener('click', ()=>{
+    if(state.modal && state.modal.mode==='spread'){
+      // prev spread: step -2 within song, otherwise prev song (last spread)
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      if(state.modal.songIdx < 0 || !state.plan.length) return;
+
+      const getSongSegmentsForPlanIdx = (idx) => {
+        const song = (idx>=0 && idx<state.plan.length) ? state.plan[idx] : null;
+        if(!song) return [];
+        const key = String(song.nr);
+        if(state.mapping && state.mapping.missingSongs && state.mapping.missingSongs[key]) return [];
+        const sb = (state.mapping && state.mapping.segmentsBySong) ? state.mapping.segmentsBySong : {};
+        const mapped = sb[key];
+        const out = [];
+        if(Array.isArray(mapped) && mapped.length){
+          for(const x of mapped){ if(x && x.file) out.push({file:x.file, region:(x.region||'full')}); }
+        }
+        if(!out.length){
+          if(Array.isArray(song.segments) && song.segments.length){
+            for(const x of song.segments){ if(x && x.file) out.push({file:x.file, region:(x.region||'full')}); }
+          } else if(Array.isArray(song.pages) && song.pages.length){
+            for(const fn of song.pages){ if(fn) out.push({file:fn, region:'full'}); }
+          } else {
+            for(const fn of autoPagesForSong(song)){ if(fn) out.push({file:fn, region:'full'}); }
+          }
+        }
+        return out;
+      };
+
+      const lastOffsetForPlanIdx = (idx) => {
+        const n = getSongSegmentsForPlanIdx(idx).length;
+        if(n<=1) return 0;
+        return (n%2===0) ? Math.max(0, n-2) : Math.max(0, n-1);
+      };
+
+      state.modal.songIdx = clamp(state.modal.songIdx|0, 0, state.plan.length-1);
+      state.modal.offset = Math.max(0, state.modal.offset|0);
+
+      if(state.modal.offset - 2 >= 0){
+        state.modal.offset -= 2;
+      } else {
+        if(state.modal.songIdx<=0){ state.modal.songIdx = 0; state.modal.offset = 0; }
+        else {
+          state.modal.songIdx -= 1;
+          state.modal.offset = lastOffsetForPlanIdx(state.modal.songIdx);
+        }
+      }
+      state.modal.song = state.plan[state.modal.songIdx];
+      renderPage();
+      return;
+    }
+
+    // Legacy behaviour
+    if(state.modal.songIdx < 0) return;
+    openSongAtPlanIndex(state.modal.songIdx - 1);
+  });
+
+  $("nextSong").addEventListener('click', ()=>{
+    if(state.modal && state.modal.mode==='spread'){
+      // next spread: step +2 within song, otherwise next song
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      if(state.modal.songIdx < 0 || !state.plan.length) return;
+
+      const getSongSegmentsForPlanIdx = (idx) => {
+        const song = (idx>=0 && idx<state.plan.length) ? state.plan[idx] : null;
+        if(!song) return [];
+        const key = String(song.nr);
+        if(state.mapping && state.mapping.missingSongs && state.mapping.missingSongs[key]) return [];
+        const sb = (state.mapping && state.mapping.segmentsBySong) ? state.mapping.segmentsBySong : {};
+        const mapped = sb[key];
+        const out = [];
+        if(Array.isArray(mapped) && mapped.length){
+          for(const x of mapped){ if(x && x.file) out.push({file:x.file, region:(x.region||'full')}); }
+        }
+        if(!out.length){
+          if(Array.isArray(song.segments) && song.segments.length){
+            for(const x of song.segments){ if(x && x.file) out.push({file:x.file, region:(x.region||'full')}); }
+          } else if(Array.isArray(song.pages) && song.pages.length){
+            for(const fn of song.pages){ if(fn) out.push({file:fn, region:'full'}); }
+          } else {
+            for(const fn of autoPagesForSong(song)){ if(fn) out.push({file:fn, region:'full'}); }
+          }
+        }
+        return out;
+      };
+
+      state.modal.songIdx = clamp(state.modal.songIdx|0, 0, state.plan.length-1);
+      state.modal.offset = Math.max(0, state.modal.offset|0);
+      const segs = getSongSegmentsForPlanIdx(state.modal.songIdx);
+
+      if(segs.length && (state.modal.offset + 2) < segs.length){
+        state.modal.offset += 2;
+      } else {
+        if(state.modal.songIdx >= state.plan.length-1){
+          state.modal.songIdx = state.plan.length-1;
+          state.modal.offset = 0;
+        } else {
+          state.modal.songIdx += 1;
+          state.modal.offset = 0;
+        }
+      }
+      state.modal.song = state.plan[state.modal.songIdx];
+      renderPage();
+      return;
+    }
+
+    // Legacy behaviour
+    if(state.modal.songIdx < 0) return;
+    const s = state.modal.song;
+    if(s){
+      let segments = (s.segments && Array.isArray(s.segments) && s.segments.length) ? s.segments.slice() : null;
+      if(!segments){
+        const pages = (s.pages && s.pages.length) ? s.pages : null;
+        if(pages && pages.length) segments = pages.map(fn=>({file: fn, region:'full'}));
+      }
+      if(!segments){
+        const pages = autoPagesForSong(s);
+        segments = pages.map(fn=>({file: fn, region:'full'}));
+      }
+      if(segments && segments.length>=3 && state.modal.pageIdx < segments.length-1){
+        state.modal.pageIdx++;
+        renderPage();
+        return;
+      }
+    }
+    openSongAtPlanIndex(state.modal.songIdx + 1);
+  });
+
+  $("close").addEventListener('click', closeSong);
+  $("modal").addEventListener('click', (e)=>{ if(e.target.id==='modal') closeSong(); });
+
+  // Viewer navigation: keyboard + swipe (spread mode)
+  document.addEventListener('keydown', (e)=>{
+    const m = $("modal");
+    if(!m || !m.classList.contains('open')) return;
+    if(e.key==='ArrowLeft'){
+      e.preventDefault();
+      $("prevSong").click();
+    }
+    if(e.key==='ArrowRight'){
+      e.preventDefault();
+      $("nextSong").click();
+    }
+  }, {passive:false});
+
+  (function(){
+    const frame = $("mFrame");
+    if(!frame) return;
+    let sx=0, sy=0, st=0;
+    frame.addEventListener('touchstart', (e)=>{
+      const t = e.touches && e.touches[0];
+      if(!t) return;
+      sx = t.clientX; sy = t.clientY; st = Date.now();
+    }, {passive:true});
+    frame.addEventListener('touchend', (e)=>{
+      const t = e.changedTouches && e.changedTouches[0];
+      if(!t) return;
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      const dt = Date.now() - st;
+      // horizontal swipe threshold
+      if(dt>900) return;
+      if(Math.abs(dx) < 50) return;
+      if(Math.abs(dx) < Math.abs(dy)) return;
+      // swipe left -> next, swipe right -> prev
+      if(dx < 0) $("nextSong").click();
+      else $("prevSong").click();
+    }, {passive:true});
+  })();
+
+  init();
+</script>
+</body>
+</html>
