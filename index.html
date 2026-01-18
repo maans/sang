@@ -1604,6 +1604,9 @@
     .icon.remove{border-color:rgba(255,92,122,.35);background:rgba(255,92,122,.14)}
     .icon.open{border-color:rgba(78,161,255,.35);background:rgba(78,161,255,.14)}
     .icon.small{width:32px;height:32px;border-radius:10px;font-size:12px}
+    .icon.lock{border-color:rgba(255,176,64,.35);background:rgba(255,176,64,.12)}
+    .icon.lock.is-locked{border-color:rgba(255,176,64,.55);background:rgba(255,176,64,.22)}
+    .icon.lock-all{min-width:120px;height:32px;border-radius:10px;font-size:12px;padding:0 10px}
     /* toast */
     .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(15,26,46,.96);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;z-index:999}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
@@ -1713,11 +1716,11 @@
         </div>
         <div style="flex:1.2">
           <label>&nbsp;</label>
-          <button id="generate" type="button">Generér sangtime</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="generateKeep" type="button" title="Generér – bevar låste sange i din nuværende sangtime (hvis der er nogen)">Generér (bevar låste)</button><button id="generateNew" class="secondary" type="button" title="Generér en helt ny sangtime og overskriv den nuværende">Generér nyt</button></div><div class="hint" style="margin-top:6px">Tip: Brug <b>Generér (bevar låste)</b> hvis du er i gang med at bygge en sangtime og vil holde fast i enkelte sange. Brug <b>Generér nyt</b> hvis du vil starte forfra.</div>
         </div>
       </div>
 
-      <div class="hint">Efter generering kan du gå til fanen <b>Sangtime</b> og ændre rækkefølge, fjerne eller åbne sange.</div>
+      <div class="hint">Efter generering kan du gå til fanen <b>Sangtime</b> og ændre rækkefølge, låse, fjerne eller åbne sange.</div>
     </div>
   </section>
 
@@ -1751,7 +1754,8 @@
           <button class="secondary" id="editThemes" type="button" title="Gå til Temaer">Skift temaer</button>
         </div>
       </div>
-      <div id="plan" class="list"></div>
+      <div class="row" style="justify-content:flex-end;align-items:center;gap:8px;margin:6px 0 10px"><button class="secondary icon lock-all" id="toggleAllLocks" type="button" title="Lås alle / lås alle op">Lås alle</button></div>
+<div id="plan" class="list"></div>
       <div class="hint">
         <b>Flyt:</b> brug ▲/▼ (altid stabilt på mobil). På desktop kan du også trække i ≡.  
         <b>Åbn:</b> ↗ åbner sangens side(r) og du kan bladre.
@@ -1903,12 +1907,14 @@
     <div class="mh">
       <div style="font-weight:900">Arkiv</div>
       <div style="display:flex;gap:8px">
-        <button class="secondary" id="archiveDownloadAll" type="button" title="Download hele arkivet som JSON">Download arkiv</button>
+        <button class="secondary" id="archiveDownloadAll" type="button" title="Download hele arkivet som én JSON-fil">Download arkiv</button>
+        <button class="secondary" id="archiveImportAll" type="button" title="Importér arkiv (JSON)">Importér arkiv</button>
         <button class="secondary" id="archiveClose" type="button">Luk</button>
       </div>
     </div>
     <div class="pb" style="max-height:70vh;overflow:auto">
       <div class="hint" style="margin:0 0 10px">Gemte sangtimer ligger i browserens localStorage. For at lave en fil-backup: brug <b>Gem</b> (download) eller <b>Download arkiv</b> her.</div>
+      <input id="archiveImportFile" type="file" accept="application/json,.json" style="display:none" />
       <div id="archiveList" class="list"></div>
       <div id="archiveEmpty" class="hint" style="display:none;margin-top:10px;color:var(--muted)">Arkivet er tomt.</div>
     </div>
@@ -1943,6 +1949,7 @@ console.log("SangApp boot");
       savedAt: new Date().toISOString(),
       date: _todayISO(),
       planNrs: (state.plan||[]).map(x=>x && x.nr).filter(Boolean),
+      lockedNrs: (state.plan||[]).filter(s=>s && s.locked).map(s=>s.nr),
       lastGen: state.lastGen ? { themes: (state.lastGen.themes||[]).slice(), count: state.lastGen.count||9 } : { themes: [], count: 9 }
     };
   }
@@ -1963,9 +1970,10 @@ console.log("SangApp boot");
 
     const byNr = new Map((state.songs||[]).map(s=>[String(s.nr), s]));
     const restored = [];
+    const lockedSet = new Set((payload.lockedNrs||[]).map(x=>String(x)));
     for(const nr of payload.planNrs){
       const s = byNr.get(String(nr));
-      if(s) restored.push(s);
+      if(s) restored.push({ ...s, locked: lockedSet.has(String(nr)) });
     }
     if(restored.length){
       state.plan = restored;
@@ -2001,12 +2009,14 @@ console.log("SangApp boot");
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   }
 
-  function addCurrentPlanToArchive(){
+  function addCurrentPlanToArchive(customTitle){
     const payload = serializeCurrentPlan();
     const id = `${payload.date}_${Date.now()}`;
+    const fallback = `Sangtime ${payload.date}`;
+    const title = (customTitle||'').trim() || fallback;
     const entry = {
       id,
-      title: `Sangtime ${payload.date}`,
+      title,
       ...payload
     };
     const a = _getArchive();
@@ -2945,24 +2955,116 @@ console.log("SangApp boot");
     }
   });
 
-// Generator
-  $("generate").addEventListener('click', ()=>{
-    const themes = selectedThemes();
+// Generator (Temaer)
+  function _getWantCount(){
     let want = parseInt($("count").value,10);
     if(!Number.isFinite(want) || want < 1) want = 1;
-    // gem valg til visning/regenerering
-    state.lastGen = { themes: themes.slice(), count: want };
-    const pool = state.songs.filter(s=>matchesThemes(s,themes));
+    return want;
+  }
+
+  function _poolForThemes(themes){
+    return state.songs.filter(s=>matchesThemes(s,themes));
+  }
+
+  function _randomSample(pool, n, excludeNrs){
+    const ex = excludeNrs ? new Set(excludeNrs.map(x=>String(x))) : new Set();
+    const candidates = pool.filter(s=>!ex.has(String(s.nr)));
+    const shuffled = candidates.slice().sort(()=>Math.random()-0.5);
+    return shuffled.slice(0, Math.max(0, Math.min(n, shuffled.length)));
+  }
+
+  function generatePlan(themes, want, opts){
+    const { keepLocked, confirmOverwrite } = opts||{};
+    const pool = _poolForThemes(themes);
     if(!pool.length){
       toast("Ingen sange matcher de valgte temaer");
-      state.plan = [];
-      renderPlan();
-      document.querySelector('[data-tab="plan"]').click();
-      return;
+      return false;
     }
-    want = Math.min(want, pool.length);
-    const shuffled = pool.slice().sort(()=>Math.random()-0.5);
-    state.plan = shuffled.slice(0,want);
+
+    const hasExisting = Array.isArray(state.plan) && state.plan.length>0;
+    const hasLocked = hasExisting && state.plan.some(s=>s && s.locked);
+
+    if(confirmOverwrite && hasExisting){
+      const msg = hasLocked
+        ? "Overskriv den nuværende sangtime? (Du har låste sange – de bliver fjernet i 'Generér nyt'.)"
+        : "Overskriv den nuværende sangtime?";
+      if(!confirm(msg)) return false;
+    }
+
+    // Update lastGen for both modes
+    state.lastGen = { themes: themes.slice(), count: want };
+
+    if(!keepLocked || !hasExisting || !hasLocked){
+      const n = Math.min(want, pool.length);
+      const pick = _randomSample(pool, n);
+      state.plan = pick.map(s=>({ ...s, locked:false }));
+      return true;
+    }
+
+    const current = state.plan.slice();
+    let targetLen = want;
+
+    // Safety: never drop locked songs if the user reduced 'antal sange'
+    const lockedBeyond = current.filter((s,idx)=>s && s.locked && idx>=targetLen);
+    if(lockedBeyond.length){
+      targetLen = targetLen + lockedBeyond.length;
+    }
+
+    const next = new Array(targetLen).fill(null);
+    const lockedNrs = [];
+
+    // Place locked songs at their indices
+    for(let i=0;i<Math.min(current.length, targetLen);i++){
+      const s = current[i];
+      if(s && s.locked){
+        next[i] = s;
+        lockedNrs.push(s.nr);
+      }
+    }
+
+    // Append any locked songs beyond desired length at the end
+    let tail = want;
+    for(const s of lockedBeyond){
+      while(tail < next.length && next[tail] !== null) tail++;
+      if(tail < next.length){
+        next[tail] = s;
+        lockedNrs.push(s.nr);
+        tail++;
+      }
+    }
+
+    // Fill remaining slots with random picks, excluding locked
+    const remaining = next.filter(x=>x===null).length;
+    const picks = _randomSample(pool, remaining, lockedNrs);
+    let pi = 0;
+    for(let i=0;i<next.length;i++){
+      if(next[i]===null){
+        const s = picks[pi++];
+        if(!s) break;
+        next[i] = { ...s, locked:false };
+      }
+    }
+
+    // If we couldn't fill all slots (pool too small), just compact
+    state.plan = next.filter(Boolean);
+    return true;
+  }
+
+  $("generateKeep").addEventListener('click', ()=>{
+    const themes = selectedThemes();
+    const want = _getWantCount();
+    const ok = generatePlan(themes, want, { keepLocked:true, confirmOverwrite:false });
+    if(!ok) return;
+    renderPlan();
+    toast(`Genereret ${state.plan.length} sange`);
+    document.querySelector('[data-tab="plan"]').click();
+  });
+
+  $("generateNew").addEventListener('click', ()=>{
+    const themes = selectedThemes();
+    const want = _getWantCount();
+    const ok = generatePlan(themes, want, { keepLocked:false, confirmOverwrite:true });
+    if(!ok) return;
     renderPlan();
     toast(`Genereret ${state.plan.length} sange`);
     document.querySelector('[data-tab="plan"]').click();
@@ -3014,7 +3116,7 @@ console.log("SangApp boot");
         const nr = parseInt(b.dataset.add,10);
         const song = state.songs.find(x=>x.nr===nr);
         if(song && !state.plan.some(p=>p.nr===nr)){
-          state.plan.push(song);
+          state.plan.push({ ...song, locked:false });
           renderPlan();
           toast(`Tilføjet: ${song.nr}. ${song.titel}`);
           const card = b.closest('.item');
@@ -3028,12 +3130,116 @@ console.log("SangApp boot");
   $("shuffle").addEventListener('click', ()=>{ state.plan = state.plan.slice().sort(()=>Math.random()-0.5); renderPlan(); });
   $("clearPlan").addEventListener('click', ()=>{ state.plan=[]; renderPlan(); });
 
+  $("toggleAllLocks").addEventListener('click', ()=>{
+    if(!state.plan.length) return;
+    const allLocked = state.plan.every(s=>s && s.locked);
+    state.plan = state.plan.map(s=>({ ...s, locked: !allLocked }));
+    renderPlan();
+  });
+
   // Gem + Arkiv
   const archiveModal = $("archiveModal");
   function openArchive(){ archiveModal.classList.add('open'); archiveModal.setAttribute('aria-hidden','false'); renderArchive(); }
   function closeArchive(){ archiveModal.classList.remove('open'); archiveModal.setAttribute('aria-hidden','true'); }
   $("archiveClose").addEventListener('click', closeArchive);
   archiveModal.addEventListener('click', (e)=>{ if(e.target===archiveModal) closeArchive(); });
+
+
+  // Download arkiv som én JSON-fil + import (offline backup)
+  function buildArchiveExportPayload(){
+    const a = _getArchive();
+    const items = a.map(entry=>{
+      const lockedSet = new Set((entry.lockedNrs||[]).map(x=>String(x)));
+      const planNrs = Array.isArray(entry.planNrs) ? entry.planNrs.slice() : [];
+      return {
+        id: entry.id,
+        title: entry.title || 'Sangtime',
+        date: entry.date || '',
+        savedAt: entry.savedAt || '',
+        themes: (entry.lastGen && Array.isArray(entry.lastGen.themes)) ? entry.lastGen.themes.slice() : [],
+        songs: planNrs.map(nr=>({ nr: Number(nr), locked: lockedSet.has(String(nr)) }))
+      };
+    });
+
+    return {
+      exportVersion: 1,
+      app: 'Sangtime Generator',
+      exportedAt: new Date().toISOString(),
+      archive: items
+    };
+  }
+
+  const archiveDownloadAllBtn = $("archiveDownloadAll");
+  if(archiveDownloadAllBtn) archiveDownloadAllBtn.addEventListener('click', ()=>{
+    const payload = buildArchiveExportPayload();
+    const filename = `sangtime-arkiv-${_todayISO()}.json`;
+    downloadJSON(payload, filename);
+    toast('Arkiv downloadet');
+  });
+
+  const archiveImportBtn = $("archiveImportAll");
+  const archiveImportFile = $("archiveImportFile");
+  if(archiveImportBtn && archiveImportFile){
+    archiveImportBtn.addEventListener('click', ()=> archiveImportFile.click());
+    archiveImportFile.addEventListener('change', async (e)=>{
+      const f = e.target.files && e.target.files[0];
+      e.target.value = ''; // allow re-import same file
+      if(!f) return;
+      try{
+        const text = await f.text();
+        const data = _safeJSONParse(text, null);
+        let incoming = [];
+        if(Array.isArray(data)) incoming = data;
+        else if(data && Array.isArray(data.archive)) incoming = data.archive;
+        else if(data && Array.isArray(data.items)) incoming = data.items;
+
+        const normalized = (incoming||[]).map(x=>{
+          if(!x) return null;
+          // Accept export format (songs[]) and internal format (planNrs/lockedNrs)
+          if(Array.isArray(x.songs)){
+            const planNrs = x.songs.map(s=>s && s.nr).filter(n=>Number.isFinite(Number(n))).map(n=>Number(n));
+            const lockedNrs = x.songs.filter(s=>s && s.locked).map(s=>Number(s.nr)).filter(n=>Number.isFinite(n));
+            return {
+              id: x.id || `${(x.date||_todayISO())}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+              title: (x.title||'Sangtime'),
+              version: 1,
+              savedAt: x.savedAt || new Date().toISOString(),
+              date: x.date || _todayISO(),
+              planNrs,
+              lockedNrs,
+              lastGen: { themes: Array.isArray(x.themes) ? x.themes.slice() : [], count: (x.count||9) }
+            };
+          }
+          // Internal entry: keep as-is (light sanity)
+          if(Array.isArray(x.planNrs)) return x;
+          return null;
+        }).filter(Boolean);
+
+        if(!normalized.length){
+          toast('Arkivfilen indeholder ingen sangtimer');
+          return;
+        }
+
+        const existing = _getArchive();
+        const byId = new Map(existing.map(e=>[String(e.id), e]));
+        for(const entry of normalized){
+          byId.set(String(entry.id), entry);
+        }
+        const merged = Array.from(byId.values()).sort((a,b)=>{
+          const da = (a.savedAt||a.date||'');
+          const db = (b.savedAt||b.date||'');
+          return String(db).localeCompare(String(da));
+        });
+        _setArchive(merged);
+        renderArchive();
+        toast(`Importeret: ${normalized.length} sangtimer`);
+      }catch(err){
+        console.warn(err);
+        toast('Kunne ikke importere arkiv');
+      }
+    });
+  }
+
 
   function renderArchive(){
     const list = $("archiveList");
@@ -3058,9 +3264,10 @@ console.log("SangApp boot");
       if(!entry) return;
       const byNr = new Map((state.songs||[]).map(s=>[String(s.nr), s]));
       const restored = [];
+      const lockedSet = new Set((entry.lockedNrs||[]).map(x=>String(x)));
       for(const nr of (entry.planNrs||[])){
         const s = byNr.get(String(nr));
-        if(s) restored.push(s);
+        if(s) restored.push({ ...s, locked: lockedSet.has(String(nr)) });
       }
       state.plan = restored;
       if(entry.lastGen){ state.lastGen = { themes: (entry.lastGen.themes||[]).slice(), count: entry.lastGen.count||9 }; }
@@ -3088,26 +3295,27 @@ console.log("SangApp boot");
 
   $("savePlan").addEventListener('click', ()=>{
     if(!state.plan.length){ toast('Sangtimen er tom'); return; }
+    const date = _todayISO();
+    const themes = (state.lastGen && Array.isArray(state.lastGen.themes) && state.lastGen.themes.length) ? state.lastGen.themes.join(' · ') : '';
+    const suggestion = (`Sangtime ${date}` + (themes ? ` – ${themes}` : '')).slice(0, 80);
+    const customTitle = prompt('Navn på sangtimen (til arkiv):', suggestion);
+    if(customTitle===null) return; // user cancelled
+
     // NOTE: Browsere kan ikke skrive direkte til en "arkiv"-mappe på disken.
     // Derfor: gem i localStorage-arkiv + download JSON, som du kan lægge i /arkiv manuelt.
-    const entry = addCurrentPlanToArchive();
+    const entry = addCurrentPlanToArchive(customTitle);
     saveCurrentPlanToLocal();
-    downloadJSON(entry, `Sangtime_${entry.date||_todayISO()}.json`);
+    const safeName = (entry.title||'Sangtime').replace(/[^a-z0-9_-]+/ig,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,'');
+    downloadJSON(entry, `${safeName||'Sangtime'}.json`);
     toast('Gemt (download + arkiv)');
   });
 
   $("regenPlan").addEventListener('click', ()=>{
     const themes = (state.lastGen && Array.isArray(state.lastGen.themes)) ? state.lastGen.themes : [];
-    let want = parseInt($("count").value,10);
+    let want = _getWantCount();
     if(!Number.isFinite(want) || want < 1) want = (state.lastGen && state.lastGen.count) ? state.lastGen.count : 9;
-    const pool = state.songs.filter(s=>matchesThemes(s,themes));
-    if(!pool.length){
-      toast('Ingen sange matcher de valgte temaer');
-      return;
-    }
-    want = Math.min(want, pool.length);
-    const shuffled = pool.slice().sort(()=>Math.random()-0.5);
-    state.plan = shuffled.slice(0,want);
+    const ok = generatePlan(themes, want, { keepLocked:true, confirmOverwrite:false });
+    if(!ok) return;
     renderPlan();
     toast(`Genereret ${state.plan.length} sange`);
   });
@@ -3139,7 +3347,8 @@ console.log("SangApp boot");
         </div>
         <div class="acts">
           ${idx>0 ? `<button class="icon small" data-up="${idx}" type="button" aria-label="Flyt op" title="Flyt op">▲</button>` : ``}
-          ${idx<plan.length-1 ? `<button class="icon small" data-down="${idx}" type="button" aria-label="Flyt ned" title="Flyt ned">▼</button>` : ``}
+          ${idx<state.plan.length-1 ? `<button class="icon small" data-down="${idx}" type="button" aria-label="Flyt ned" title="Flyt ned">▼</button>` : ``}
+          <button class="icon lock ${s.locked?'is-locked':''}" data-lock="${idx}" type="button" title="Lås/ Lås op">${s.locked?'🔒':'🔓'}</button>
           <button class="icon open" data-open="${s.nr}" type="button">↗</button>
           <button class="icon remove" data-remove="${s.nr}" type="button">✕</button>
         </div>
@@ -3154,6 +3363,23 @@ console.log("SangApp boot");
     el.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click', ()=>openSong(parseInt(b.dataset.open,10))));
     el.querySelectorAll('[data-up]').forEach(b=>b.addEventListener('click', ()=>move(parseInt(b.dataset.up,10), -1)));
     el.querySelectorAll('[data-down]').forEach(b=>b.addEventListener('click', ()=>move(parseInt(b.dataset.down,10), +1)));
+
+    el.querySelectorAll('[data-lock]').forEach(b=>b.addEventListener('click', ()=>{
+      const i = parseInt(b.dataset.lock,10);
+      const arr = state.plan.slice();
+      if(!arr[i]) return;
+      arr[i] = { ...arr[i], locked: !arr[i].locked };
+      state.plan = arr;
+      renderPlan();
+    }));
+
+    // Lock-all button label
+    const lab = $("toggleAllLocks");
+    if(lab){
+      const any = state.plan.length>0;
+      const allLocked = any && state.plan.every(s=>s && s.locked);
+      lab.textContent = allLocked ? 'Lås alle op' : 'Lås alle';
+    }
 
     // Desktop drag-drop
     el.querySelectorAll('[draggable]').forEach(item=>{
